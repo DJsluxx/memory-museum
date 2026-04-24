@@ -52,7 +52,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install playwright pillow piexif aiohttp numpy
+          pip install -r requirements.txt
 
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium

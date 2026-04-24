@@ -734,7 +734,7 @@
       </svg>
     </div>
   </div>
-  <button id="mobile-interact">Read Plaque</button>
+  <button id="mobile-interact">Look Closer</button>
 </div>
 
 <!-- Pause overlay -->
@@ -1199,16 +1199,18 @@ const COUNTRY_THEMES = {
 // Size the room to its exhibit count.
 // Thresholds match the Phase-3 spec: 1–5 / 6–15 / 16–30 / 31–60 / 60+.
 function sizeForCount(n) {
-  if (n <= 5)  return { w: 10, d: 10 };
-  if (n <= 15) return { w: 12, d: 16 };
-  if (n <= 30) return { w: 16, d: 24 };
-  if (n <= 60) return { w: 20, d: 32 };
-  return { w: 22, d: 38 };  // large wings; placeOnWall spreads across 3 walls
+  if (n <= 5)  return { w: 10, d: 12 };
+  if (n <= 15) return { w: 12, d: 18 };
+  if (n <= 30) return { w: 16, d: 26 };
+  if (n <= 60) return { w: 20, d: 38 };
+  if (n <= 100) return { w: 22, d: 48 };
+  return { w: 24, d: 60 }; // cavernous wings — two rows of photos on each wall
 }
 
 // Derive room list from exhibits: foyer → one room per country (chronological) → letter.
-// Countries with 1–2 exhibits fold into a shared "Travels" room so the corridor
-// doesn't fragment into a dozen tiny chambers.
+// Countries with only 1 exhibit fold into a shared "Travels" room so the corridor
+// doesn't fragment into a dozen tiny single-photo chambers. Any country with
+// ≥2 photos gets its own dedicated gallery.
 function deriveRooms(exhibits) {
   const byCountry = {};
   exhibits.forEach((ex, idx) => {
@@ -1216,10 +1218,10 @@ function deriveRooms(exhibits) {
     (byCountry[key] = byCountry[key] || []).push({ ex, idx });
   });
 
-  // Any country with <3 exhibits gets reassigned to "unknown" (Travels).
+  // Any country with <2 exhibits gets reassigned to "unknown" (Travels).
   const merged = {};
   Object.entries(byCountry).forEach(([k, arr]) => {
-    if (arr.length < 3 && k !== "japan" && k !== "china" && k !== "korea") {
+    if (arr.length < 2) {
       (merged["unknown"] = merged["unknown"] || []).push(...arr);
     } else {
       merged[k] = arr;
@@ -1787,56 +1789,87 @@ function tallPedestal(height = 0.85, radius = 0.26, color = 0xe8dcc0) {
   return g;
 }
 
-// ── "Us" — two stylized figures in the foyer ─────────────────────────
-// Low-poly, deliberately abstract. Not portraits — more like two standing
-// silhouettes on the medallion, waiting to walk the museum together.
-// Daniel: dark jacket, slightly taller. Alena: warm knit sweater, slightly
-// shorter. Their inside hands meet at ~0.9m (the classic holding-hands height).
+// ── "Us" — two figures in the foyer, with real photos as their faces ──
+// The figures are a stylised procedural body + a photo-billboard on the
+// front of the chest that shows a real picture of us. When the photo
+// texture loads, it also gets cloned onto a small "face card" above the
+// head — so Alena walks in and sees *us* standing there, not placeholders.
 function buildUs(room) {
   const { zCenter, zStart } = room;
 
-  // Place near the back of the foyer facing toward the Japan doorway (+Z),
-  // slightly to one side so the photo-of-the-day plinth stays hero-center.
-  const px = -1.4, pz = zCenter + 0.6;  // left side of the medallion
-  const facing = Math.PI; // face +Z (toward the next room)
+  // Place near the back of the foyer facing toward the doorway (+Z),
+  // to one side so the photo-of-the-day plinth stays hero-center.
+  const px = -1.8, pz = zCenter + 0.4;
+  const facing = Math.PI;
+
+  // Pick two photos to "be" us. The first two exhibits work best because
+  // they're usually the earliest, clearest shots. Fall back gracefully.
+  const photoA = CFG.exhibits[0]?.src || 'photos/01.jpg';
+  const photoB = CFG.exhibits[1]?.src || 'photos/02.jpg';
 
   const daniel = buildHumanFigure({
     height: 1.78,
-    shirtColor: 0x2a3a55,    // deep navy jacket
+    shirtColor: 0x2a3a55,
     pantsColor: 0x1a1a1c,
     hairColor:  0x1a1208,
     skinColor:  0xd9b38a,
     hairStyle:  'short',
+    photoSrc:   photoA,
+    namePlaqueText: 'Daniel',
   });
-  daniel.position.set(px + 0.22, 0, pz);
+  daniel.position.set(px + 0.32, 0, pz);
   daniel.rotation.y = facing;
   scene.add(daniel);
 
   const alena = buildHumanFigure({
     height: 1.68,
-    shirtColor: 0xc78b58,    // warm knit sweater
-    pantsColor: 0x8a7350,    // taupe skirt
+    shirtColor: 0xc78b58,
+    pantsColor: 0x8a7350,
     hairColor:  0x1a0a06,
     skinColor:  0xe6c9a5,
     hairStyle:  'long',
+    photoSrc:   photoB,
+    namePlaqueText: CFG.visitorName || 'Alena',
   });
-  alena.position.set(px - 0.22, 0, pz);
+  alena.position.set(px - 0.32, 0, pz);
   alena.rotation.y = facing;
   scene.add(alena);
 
   // Hand-holding bridge: tiny cylinder between their inner arms.
   const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xd9b38a, roughness: 0.8 });
-  const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.45, 8), bridgeMat);
+  const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.6, 8), bridgeMat);
   bridge.rotation.z = Math.PI / 2;
   bridge.position.set(px, 0.92, pz);
   scene.add(bridge);
 
+  // Warm plaque on the floor in front of them
+  const floorLabelCanvas = document.createElement('canvas');
+  floorLabelCanvas.width = 1024; floorLabelCanvas.height = 256;
+  const flc = floorLabelCanvas.getContext('2d');
+  flc.fillStyle = 'rgba(196,160,90,0.0)'; flc.fillRect(0, 0, 1024, 256);
+  flc.fillStyle = 'rgba(30,20,12,0.85)';
+  flc.font = 'italic 500 120px "Cormorant Garamond", serif';
+  flc.textAlign = 'center'; flc.textBaseline = 'middle';
+  flc.fillText('✦  us  ✦', 512, 128);
+  const flTex = new THREE.CanvasTexture(floorLabelCanvas);
+  flTex.colorSpace = THREE.SRGBColorSpace;
+  flTex.generateMipmaps = false;
+  flTex.minFilter = THREE.LinearFilter; flTex.magFilter = THREE.LinearFilter;
+  const flMat = new THREE.MeshStandardMaterial({
+    map: flTex, transparent: true, roughness: 0.6,
+    emissive: 0xffffff, emissiveMap: flTex, emissiveIntensity: 0.3,
+  });
+  const flPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), flMat);
+  flPlane.rotation.x = -Math.PI / 2;
+  flPlane.position.set(px, 0.02, pz + 0.8);
+  scene.add(flPlane);
+
   // Collision around them so Alena can walk up to but not through.
-  addCollision(px, pz, 0.9, 0.45);
+  addCollision(px, pz, 1.2, 0.55);
 }
 
 function buildHumanFigure(opts) {
-  const { height, shirtColor, pantsColor, hairColor, skinColor, hairStyle } = opts;
+  const { height, shirtColor, pantsColor, hairColor, skinColor, hairStyle, photoSrc, namePlaqueText } = opts;
   const g = new THREE.Group();
   const headR = 0.12;
   const neckH = 0.08;
@@ -1912,6 +1945,89 @@ function buildHumanFigure(opts) {
     hairBack.scale.set(0.95, 1.5, 0.6);
     g.add(hairBack);
   }
+
+  // Photo face — a textured plane on the front of the head (+Z local) that
+  // will show the real person once the photo loads. Until then it's a warm
+  // stand-in so the figure never looks "faceless".
+  if (photoSrc) {
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0xf0e3c5, roughness: 0.8,
+      emissive: 0xffffff, emissiveIntensity: 0.55,
+    });
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.28), faceMat);
+    face.position.set(0, headY, headR * 0.95);
+    g.add(face);
+
+    // Chest billboard — a taller, richer photo on the torso so the figure
+    // reads like us even from across the room. Framed in gold so it looks
+    // intentional rather than pasted-on.
+    const panelW = 0.5, panelH = 0.65;
+    const panelMat = new THREE.MeshStandardMaterial({
+      color: 0xf0e3c5, roughness: 0.8,
+      emissive: 0xffffff, emissiveIntensity: 0.55,
+    });
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW, panelH), panelMat);
+    panel.position.set(0, shoulderY - torsoH * 0.55, 0.18);
+    g.add(panel);
+    const frameColor = 0xc4a05a;
+    const frameMat2 = new THREE.MeshStandardMaterial({ color: frameColor, roughness: 0.3, metalness: 0.85 });
+    // 4 thin bars around the panel
+    const fBars = [
+      { sx: 0,       sy:  panelH/2 + 0.02, w: panelW + 0.08, h: 0.035, d: 0.03 },
+      { sx: 0,       sy: -panelH/2 - 0.02, w: panelW + 0.08, h: 0.035, d: 0.03 },
+      { sx: -panelW/2 - 0.02, sy: 0, w: 0.035, h: panelH + 0.08, d: 0.03 },
+      { sx:  panelW/2 + 0.02, sy: 0, w: 0.035, h: panelH + 0.08, d: 0.03 },
+    ];
+    for (const b of fBars) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), frameMat2);
+      bar.position.set(b.sx, shoulderY - torsoH * 0.55 + b.sy, 0.16);
+      g.add(bar);
+    }
+
+    // Load the photo texture and assign to both face + chest panel.
+    // Uses _origLoad if available so this does NOT double-count against
+    // LoadProgress (the same photo is also counted as an exhibit).
+    const load = typeof _origLoad !== 'undefined' ? _origLoad : loader.load.bind(loader);
+    const url = (window.PHOTO_DATA && window.PHOTO_DATA[photoSrc]) || photoSrc;
+    load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      faceMat.map = tex; faceMat.emissiveMap = tex;
+      faceMat.color.set(0xffffff); faceMat.needsUpdate = true;
+      panelMat.map = tex; panelMat.emissiveMap = tex;
+      panelMat.color.set(0xffffff); panelMat.needsUpdate = true;
+    }, undefined, () => { /* leave the warm placeholder */ });
+  }
+
+  // Name plaque on a little brass tag in front of the shoes — tiny but
+  // reassuring (Alena's name is whatever CFG.visitorName is).
+  if (namePlaqueText) {
+    const nc = document.createElement('canvas'); nc.width = 512; nc.height = 128;
+    const nx = nc.getContext('2d');
+    const grad = nx.createLinearGradient(0, 0, 512, 128);
+    grad.addColorStop(0, '#d4b470'); grad.addColorStop(1, '#a88a4a');
+    nx.fillStyle = grad; nx.fillRect(0, 0, 512, 128);
+    nx.strokeStyle = '#8a6e38'; nx.lineWidth = 3;
+    nx.strokeRect(4, 4, 504, 120);
+    nx.fillStyle = '#2a1f10';
+    nx.font = 'italic 500 58px "Cormorant Garamond", serif';
+    nx.textAlign = 'center'; nx.textBaseline = 'middle';
+    nx.fillText(namePlaqueText, 256, 66);
+    const ntex = new THREE.CanvasTexture(nc);
+    ntex.colorSpace = THREE.SRGBColorSpace;
+    ntex.generateMipmaps = false;
+    ntex.minFilter = THREE.LinearFilter; ntex.magFilter = THREE.LinearFilter;
+    const nmat = new THREE.MeshStandardMaterial({
+      map: ntex, roughness: 0.3, metalness: 0.85,
+      emissive: 0xffffff, emissiveMap: ntex, emissiveIntensity: 0.35,
+    });
+    const nplate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.09), nmat);
+    nplate.position.set(0, 0.25, 0.22);
+    g.add(nplate);
+  }
+
   return g;
 }
 
@@ -2847,19 +2963,8 @@ function buildPhotoOfTheDay(room) {
     () => { /* fallback: stays cream */ }
   );
 
-  // Register the plinth as interactable so tapping it opens the plaque for that day's photo.
-  const interactGeom = new THREE.PlaneGeometry(1.0, 1.4);
-  const invis = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
-  const interact = new THREE.Mesh(interactGeom, invis);
-  interact.position.set(px, 1.5, pz - 0.1);
-  interact.rotation.y = Math.PI;
-  scene.add(interact);
-  interactables.push({
-    mesh: interact,
-    position: interact.position.clone(),
-    type: 'exhibit',
-    exhibit: pick,
-  });
+  // Plinth stays decorative — photos on the walls are the interactables now.
+  // The plinth is the foyer's heroic "photo of today" sculpture, nothing more.
 }
 
 function buildLetterRoom(room) {
@@ -3006,6 +3111,360 @@ function buildStandalonePlaque(title, body, x, y, z, rotY) {
   return mesh;
 }
 
+// ---------------- Country tomb / monument (one per country room) ----------------
+// Replaces the old per-photo plaque mechanic. Each country room gets ONE
+// beautiful sarcophagus-style monument at its far end. The tomb bears a
+// themed bronze sign with a short, summarised story of us in that country
+// — generated from the photo count + date range + country name. Interact
+// with the monument to open the full story in the overlay reader.
+const TOMB_STYLES = {
+  japan:     { stone: 0x2a2018, top: 0xbc002d, cap: 0x1a1208, motif: 'torii',   accent: 0xc4a05a },
+  china:     { stone: 0x2a0808, top: 0xffde00, cap: 0x1a0404, motif: 'lion',    accent: 0xffde00 },
+  korea:     { stone: 0xd4cfbf, top: 0x003478, cap: 0x8a7350, motif: 'vase',    accent: 0xc60c30 },
+  "south-korea": { stone: 0xd4cfbf, top: 0x003478, cap: 0x8a7350, motif: 'vase', accent: 0xc60c30 },
+  taiwan:    { stone: 0xe0d8c4, top: 0xfe0000, cap: 0x000095, motif: 'lantern', accent: 0x000095 },
+  thailand:  { stone: 0xe6dbb8, top: 0xc4a05a, cap: 0xa51931, motif: 'stupa',   accent: 0xc4a05a },
+  singapore: { stone: 0xe8dcc0, top: 0xef3340, cap: 0xc4a05a, motif: 'orchid',  accent: 0xef3340 },
+  vietnam:   { stone: 0x2a1f10, top: 0xda251d, cap: 0xffff00, motif: 'lantern', accent: 0xffff00 },
+  "hong-kong": { stone: 0x1a1a1a, top: 0xde2408, cap: 0xffffff, motif: 'orchid', accent: 0xde2408 },
+  israel:    { stone: 0xd6c49b, top: 0x0038b8, cap: 0x7a6540, motif: 'menorah', accent: 0x0038b8 },
+  uae:       { stone: 0xd8b478, top: 0x00732f, cap: 0xff0000, motif: 'palm',    accent: 0x00732f },
+  cambodia:  { stone: 0xb89068, top: 0x032ea1, cap: 0xe00025, motif: 'stupa',   accent: 0xe00025 },
+  laos:      { stone: 0x5a3f28, top: 0xce1126, cap: 0x002868, motif: 'stupa',   accent: 0xffffff },
+  malaysia:  { stone: 0x3a2a1d, top: 0xcc0001, cap: 0xffcc00, motif: 'orchid',  accent: 0x010066 },
+  indonesia: { stone: 0x7a5a3a, top: 0xff0000, cap: 0xffffff, motif: 'lantern', accent: 0xff0000 },
+  philippines:{ stone: 0x6a4e30, top: 0x0038a8, cap: 0xce1126, motif: 'orchid', accent: 0xfcd116 },
+  india:     { stone: 0xb89068, top: 0xff9933, cap: 0x138808, motif: 'stupa',   accent: 0x138808 },
+  usa:       { stone: 0xe8dcc0, top: 0x3c3b6e, cap: 0xb22234, motif: 'obelisk', accent: 0xb22234 },
+  uk:        { stone: 0xd6ccb8, top: 0x012169, cap: 0xc8102e, motif: 'obelisk', accent: 0xc8102e },
+  france:    { stone: 0xe8dcc0, top: 0x0055a4, cap: 0xef4135, motif: 'obelisk', accent: 0xef4135 },
+  italy:     { stone: 0xe0d0b0, top: 0x009246, cap: 0xce2b37, motif: 'obelisk', accent: 0xce2b37 },
+  greece:    { stone: 0xf0ead5, top: 0x0d5eaf, cap: 0xf0ead5, motif: 'obelisk', accent: 0x0d5eaf },
+  spain:     { stone: 0xd0a878, top: 0xaa151b, cap: 0xf1bf00, motif: 'lantern', accent: 0xaa151b },
+  unknown:   { stone: 0xd4c8a8, top: 0xc4a05a, cap: 0x8a6e38, motif: 'obelisk', accent: 0xc4a05a },
+};
+
+// Narrative composer — turns the photos for one country into a short,
+// human-sounding story paragraph. We only use the facts we have (count,
+// earliest/latest date, country name). The tone mirrors the CLAUDE.md
+// voice rules: specific, present-tense, no travel-metaphors.
+function composeCountryStory(roomKey, exhibits) {
+  const theme = COUNTRY_THEMES[roomKey] || COUNTRY_THEMES.unknown;
+  const name = theme.name;
+  const count = exhibits.length;
+  // Parse dates (ISO or "Osaka · first night" style — we only use the ISO ones)
+  const dates = exhibits.map(e => {
+    const s = (e.date || '').trim();
+    const m = s.match(/\d{4}-\d{2}-\d{2}/);
+    return m ? new Date(m[0]) : null;
+  }).filter(Boolean).sort((a, b) => a - b);
+  const fmt = d => d ? d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+  const first = dates[0], last = dates[dates.length - 1];
+  let whenLine = '';
+  if (first && last) {
+    if (first.getTime() === last.getTime()) whenLine = `${fmt(first)}. `;
+    else if (fmt(first) === fmt(last))      whenLine = `${fmt(first)}. `;
+    else                                    whenLine = `${fmt(first)} — ${fmt(last)}. `;
+  }
+  const frames = count === 1 ? 'one frame' : `${count} frames`;
+  // Country-specific one-liner if we have it, else a gentle generic.
+  const VERSE = {
+    japan: "Neon canals, red trees, quiet trains. We kept pointing out the same small things and calling each of them by their English name and their Japanese name.",
+    china: "Arcades glowing under fluorescent, a wall in a language neither of us fully read, cheese jokes that somehow made sense.",
+    korea: "Teal walls, unmade beds made again, mirror selfies at the end of long days. The hotel room as another room in a moving house.",
+    "south-korea": "Teal walls, unmade beds made again, mirror selfies at the end of long days.",
+    taiwan: "Night markets, lantern streets, steam that fogged a single camera lens at a time.",
+    thailand: "Warm stone, cooler rooms, temples that echoed if you whispered the wrong thing.",
+    singapore: "Rain that lasted three minutes, a skyline that lasted forever.",
+    vietnam: "Scooters like a tide, coffee that tasted of caramel and dirt, laughter across tiny plastic chairs.",
+    "hong-kong": "Vertical city, horizontal us — stacked MTR stations, steep escalators, a night too short.",
+    israel: "Warm stone under hand, jasmine in an old street, a table set long before we got there.",
+    uae: "Glass towers, desert haze, dates in a bowl that kept refilling.",
+    cambodia: "Carved stone that outlasts everyone; we sat anyway and counted our hands.",
+    laos: "Slow rivers, slower morning, a bell we didn't ring but remembered.",
+    malaysia: "Satay smoke and cool marble — the city alternated between the two every block.",
+    indonesia: "Frangipani on the ground, heat at altitude, a wet towel around your shoulders.",
+    philippines: "Salt-white beaches and tricycle engines, both louder than the waves.",
+    india: "Bright walls and brighter spices; colour so loud that the camera gave up trying to capture it.",
+    usa: "Wide roads and wider coffees. One of us kept saying 'this is bigger than home' and the other kept laughing.",
+    uk: "Grey light, green parks, warm pubs — a tidy country built for long walks and short sentences.",
+    france: "Small tables on narrow pavements, crumbs on a napkin, one of us translating the menu badly on purpose.",
+    italy: "Late dinners, early markets, a piazza that seemed to expect us.",
+    greece: "White cubes and blue doors; a wind that smelled of salt and oregano.",
+    spain: "Late lunches, later dinners, a waiter who called us 'cariño' without knowing us.",
+    unknown: "A trip that didn't fit tidily into one country — so we kept it loose, the way we lived it.",
+  };
+  const verse = VERSE[roomKey] || VERSE.unknown;
+  return (
+    `${whenLine}${frames} collected from our days in ${name}. ` +
+    `${verse} ` +
+    `This monument holds them together — the photographs on the walls are ours to look at closely; ` +
+    `the story is the one we're still writing.`
+  );
+}
+
+// Canvas → texture for the tomb's bronze plaque. Big, readable, brushed metal
+// with a country-tinted title band.
+function buildTombSignTexture(title, subtitle, story, accentHex) {
+  const W = 1024, H = 768;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  // Brushed bronze base
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0,   '#e8c98e');
+  g.addColorStop(0.5, '#c49a54');
+  g.addColorStop(1,   '#8a6a36');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 260; i++) {
+    ctx.strokeStyle = `rgba(255,230,180,${Math.random() * 0.12})`;
+    ctx.beginPath();
+    const y = Math.random() * H;
+    ctx.moveTo(0, y); ctx.lineTo(W, y + (Math.random() - 0.5) * 6);
+    ctx.stroke();
+  }
+  // Accent band up top (country primary)
+  const hex = '#' + (accentHex >>> 0).toString(16).padStart(6, '0').slice(-6);
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, W, 110);
+  // Inner hairline frame
+  ctx.strokeStyle = 'rgba(60,40,20,0.65)'; ctx.lineWidth = 6;
+  ctx.strokeRect(16, 16, W - 32, H - 32);
+  ctx.strokeStyle = 'rgba(255,230,180,0.45)'; ctx.lineWidth = 2;
+  ctx.strokeRect(24, 24, W - 48, H - 48);
+  // Title (on the coloured band)
+  ctx.fillStyle = '#f6edd7';
+  ctx.font = '600 64px "Cormorant Garamond", serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(title, W / 2, 58);
+  // Subtitle
+  ctx.fillStyle = '#3a2818';
+  ctx.font = 'italic 300 28px "Fraunces", serif';
+  ctx.fillText(subtitle || '', W / 2, 150);
+  // Divider
+  ctx.fillStyle = '#3a2818';
+  ctx.fillRect(W/2 - 80, 180, 160, 2);
+  // Body
+  ctx.fillStyle = '#2a1f10';
+  ctx.font = '400 30px "Fraunces", serif';
+  ctx.textBaseline = 'top';
+  const lines = wrapText(ctx, story, W - 140);
+  let yy = 220;
+  for (const line of lines) {
+    if (yy > H - 70) { ctx.fillText('…', W/2, yy); break; }
+    ctx.fillText(line, W/2, yy);
+    yy += 42;
+  }
+  // Signature flourish
+  ctx.fillStyle = '#3a2818';
+  ctx.font = 'italic 400 22px "Cormorant Garamond", serif';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('✦ Daniel · Alena ✦', W / 2, H - 40);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 16;
+  return tex;
+}
+
+// Country-flavoured motif ornament on top of the tomb.
+function buildTombMotif(kind, color, accent) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.3 });
+  const matA = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.35, metalness: 0.55 });
+  if (kind === 'torii') {
+    const vermillion = new THREE.MeshStandardMaterial({ color: 0xbc002d, roughness: 0.5 });
+    for (const sx of [-0.36, 0.36]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), vermillion);
+      p.position.set(sx, 0.4, 0); g.add(p);
+    }
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 0.14), vermillion);
+    top.position.set(0, 0.85, 0); g.add(top);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.08, 0.1), vermillion);
+    beam.position.set(0, 0.6, 0); g.add(beam);
+  } else if (kind === 'lion' || kind === 'orchid') {
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 14), matA);
+    body.position.y = 0.26; g.add(body);
+    for (let i = 0; i < 5; i++) {
+      const pet = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.05), mat);
+      const a = (i / 5) * Math.PI * 2;
+      pet.position.set(Math.cos(a) * 0.22, 0.5, Math.sin(a) * 0.22);
+      pet.rotation.z = Math.cos(a) * 0.4; pet.rotation.x = Math.sin(a) * 0.4;
+      g.add(pet);
+    }
+  } else if (kind === 'vase') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.08, 18), mat);
+    base.position.y = 0.04; g.add(base);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.24, 20, 16), matA);
+    body.position.y = 0.3; g.add(body);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.2, 16), matA);
+    neck.position.y = 0.6; g.add(neck);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 10, 24), mat);
+    rim.position.y = 0.72; rim.rotation.x = Math.PI / 2; g.add(rim);
+  } else if (kind === 'lantern') {
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.35, 6), mat);
+    cord.position.y = 0.62; g.add(cord);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 14), new THREE.MeshStandardMaterial({
+      color: accent, emissive: accent, emissiveIntensity: 0.55, roughness: 0.7,
+    }));
+    body.scale.y = 0.75; body.position.y = 0.34; g.add(body);
+    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 14), mat);
+    capTop.position.y = 0.52; g.add(capTop);
+    const capBot = capTop.clone(); capBot.position.y = 0.15; g.add(capBot);
+  } else if (kind === 'stupa') {
+    const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.14, 24), mat);
+    tier1.position.y = 0.07; g.add(tier1);
+    const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.12, 24), mat);
+    tier2.position.y = 0.2; g.add(tier2);
+    const bell  = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2), matA);
+    bell.position.y = 0.28; g.add(bell);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.3, 14), matA);
+    spire.position.y = 0.56; g.add(spire);
+  } else if (kind === 'menorah') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.06, 14), matA);
+    base.position.y = 0.03; g.add(base);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.5, 10), matA);
+    stem.position.y = 0.3; g.add(stem);
+    const crossbar = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.03), matA);
+    crossbar.position.y = 0.58; g.add(crossbar);
+    for (let i = -3; i <= 3; i++) {
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.04, 10), matA);
+      cup.position.set(i * 0.15, 0.62, 0); g.add(cup);
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xffd070, emissive: 0xffbb40, emissiveIntensity: 1.0 }));
+      flame.position.set(i * 0.15, 0.68, 0); g.add(flame);
+    }
+  } else if (kind === 'palm') {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.7, 10), mat);
+    trunk.position.y = 0.35; g.add(trunk);
+    for (let i = 0; i < 6; i++) {
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0x3a7a34, roughness: 0.6 }));
+      const a = (i / 6) * Math.PI * 2;
+      leaf.position.set(Math.cos(a) * 0.2, 0.74, Math.sin(a) * 0.2);
+      leaf.rotation.y = a; leaf.rotation.z = -0.35; g.add(leaf);
+    }
+  } else {
+    // obelisk default
+    const obe = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.9, 4), matA);
+    obe.position.y = 0.45; obe.rotation.y = Math.PI / 4; g.add(obe);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.28), mat);
+    cap.position.y = 0.02; g.add(cap);
+  }
+  return g;
+}
+
+// Build one tomb per country room and register it as interactable.
+// Position: centered on x=0, near the far (back) wall of the room so the
+// visitor walks through the gallery and finds it last — like a tomb at
+// the back of a church. Photos line the side walls; the tomb closes the
+// story.
+function buildCountryTomb(room, indexInSet, totalSet, exhibitsInRoom) {
+  if (!room || !room.country) return;
+  const { w, zCenter, zEnd, key } = room;
+  const style = TOMB_STYLES[key] || TOMB_STYLES.unknown;
+
+  // Z position: 1.8 m in front of the back wall (which at zEnd is solid only
+  // for the last room; for others the doorway is center, so we nudge the
+  // tomb left of center to not block the doorway). Actually the doorway is
+  // centered — we'll offset slightly so walking through is unobstructed.
+  const tombZ = zEnd - 2.2;
+  const tombX = 0;
+
+  const g = new THREE.Group();
+  g.position.set(tombX, 0, tombZ);
+  scene.add(g);
+
+  // Sarcophagus body — a plinth with chamfered top.
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: style.stone, roughness: 0.65, metalness: 0.05,
+    emissive: style.stone, emissiveIntensity: 0.08,
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 1.1), stoneMat);
+  body.position.y = 0.45; body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  addCollision(tombX, tombZ, 2.4, 1.3);
+  // Lid (beveled darker stone)
+  const lidMat = new THREE.MeshStandardMaterial({ color: style.cap, roughness: 0.4, metalness: 0.2 });
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 1.18), lidMat);
+  lid.position.y = 0.96; g.add(lid);
+  // Base step
+  const step = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.08, 1.28), lidMat);
+  step.position.y = 0.04; g.add(step);
+
+  // Corner accent pillars (four)
+  const pillarMat = new THREE.MeshStandardMaterial({
+    color: style.accent, roughness: 0.35, metalness: 0.7,
+    emissive: style.accent, emissiveIntensity: 0.12,
+  });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 1.02, 10), pillarMat);
+    pil.position.set(sx * 1.08, 0.51, sz * 0.53); g.add(pil);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), pillarMat);
+    orb.position.set(sx * 1.08, 1.07, sz * 0.53); g.add(orb);
+  }
+
+  // Motif on top (themed per country)
+  const motif = buildTombMotif(style.motif, style.cap, style.top);
+  motif.position.set(0, 1.02, 0);
+  g.add(motif);
+
+  // Bronze sign on the front face of the tomb — faces -Z (the visitor
+  // approaches walking +Z from the doorway, so the sign should face -Z).
+  const theme = COUNTRY_THEMES[key] || COUNTRY_THEMES.unknown;
+  const story = composeCountryStory(key, exhibitsInRoom);
+  const subtitle = `${theme.native} · ${exhibitsInRoom.length} ${exhibitsInRoom.length === 1 ? 'memory' : 'memories'}`;
+  const signTex = buildTombSignTexture(theme.name, subtitle, story, style.top);
+  const signMat = new THREE.MeshStandardMaterial({
+    map: signTex, roughness: 0.3, metalness: 0.75,
+    emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.35,
+  });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), signMat);
+  sign.position.set(0, 0.6, -0.56);
+  sign.rotation.y = Math.PI;
+  g.add(sign);
+
+  // Two tall candles in front for atmosphere
+  const candleMat = new THREE.MeshStandardMaterial({ color: 0xf6edd7, roughness: 0.7 });
+  const flameMat = new THREE.MeshStandardMaterial({
+    color: 0xffd070, emissive: 0xffbb40, emissiveIntensity: 1.2, roughness: 0.3,
+  });
+  for (const sx of [-1.25, 1.25]) {
+    const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.08, 14), pillarMat);
+    holder.position.set(sx, 0.04, -0.52); g.add(holder);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.28, 12), candleMat);
+    stem.position.set(sx, 0.22, -0.52); g.add(stem);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), flameMat);
+    flame.scale.y = 1.7; flame.position.set(sx, 0.42, -0.52); g.add(flame);
+    const candleLight = new THREE.PointLight(0xffc070, 0.7, 2.8, 1.2);
+    candleLight.position.set(sx, 0.5, -0.52);
+    g.add(candleLight);
+  }
+
+  // Invisible interactable in front of the sign.
+  const interactGeom = new THREE.PlaneGeometry(1.8, 1.4);
+  const invisMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const interact = new THREE.Mesh(interactGeom, invisMat);
+  interact.position.set(tombX, 0.7, tombZ - 0.8);
+  interact.rotation.y = Math.PI;
+  scene.add(interact);
+  interactables.push({
+    mesh: interact,
+    position: interact.position.clone(),
+    type: 'tomb',
+    tomb: {
+      roomKey: key,
+      title: theme.name,
+      subtitle,
+      story,
+      photoSrc: exhibitsInRoom[0]?.src || null,
+      index: indexInSet,
+      total: totalSet,
+    },
+  });
+}
+
 // ---------------- Photo exhibits ----------------
 function placeExhibits() {
   // Group exhibits by room
@@ -3013,6 +3472,9 @@ function placeExhibits() {
   CFG.exhibits.forEach(ex => {
     (byRoom[ex.room] = byRoom[ex.room] || []).push(ex);
   });
+
+  const countryRooms = ROOMS.filter(r => r.tone === 'country');
+  const totalCountries = countryRooms.length;
 
   Object.entries(byRoom).forEach(([roomKey, exhibits]) => {
     const room = ROOMS.find(r => r.key === roomKey);
@@ -3022,6 +3484,11 @@ function placeExhibits() {
     exhibits.forEach((ex, i) => (i % 2 === 0 ? leftWall : rightWall).push(ex));
     placeOnWall(leftWall, room, 'left');
     placeOnWall(rightWall, room, 'right');
+    // One themed tomb per country room, with the room's summarised story.
+    if (room.tone === 'country') {
+      const idx = countryRooms.indexOf(room) + 1;
+      buildCountryTomb(room, idx, totalCountries, exhibits);
+    }
   });
 }
 
@@ -3029,15 +3496,34 @@ function placeOnWall(list, room, side) {
   if (!list.length) return;
   const halfW = room.w / 2;
   const x = side === 'left' ? -halfW + 0.15 : halfW - 0.15;
-  const normal = side === 'left' ? 1 : -1; // +x for left wall facing right, -x for right wall
+  const normal = side === 'left' ? 1 : -1;
   const rotY = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
-  // Leave margin from door openings
+  // Leave margin from door openings, AND the back 2.5m for the tomb.
   const margin = 1.5;
-  const usable = room.d - margin * 2;
-  const spacing = usable / list.length;
+  const backReserve = 2.8;   // space for the country tomb at the far end
+  const usable = room.d - margin - backReserve;
+  // MIN_SPACING = 2.1m gives comfortable elbow room between max-width (1.7m)
+  // photos. If more photos than fit, stack vertically into 2 rows so nothing
+  // overlaps and no photo needs to shrink below a readable size.
+  const MIN_SPACING = 2.1;
+  const maxOneRow = Math.max(1, Math.floor(usable / MIN_SPACING));
+  if (list.length <= maxOneRow) {
+    const spacing = usable / list.length;
+    list.forEach((ex, i) => {
+      const z = room.zStart + margin + spacing * (i + 0.5);
+      createExhibit(ex, x, 2.0, z, rotY, normal);
+    });
+    return;
+  }
+  // Two rows — top row at y=2.55, bottom row at y=1.55.
+  const perRow = Math.ceil(list.length / 2);
+  const spacing = usable / perRow;
   list.forEach((ex, i) => {
-    const z = room.zStart + margin + spacing * (i + 0.5);
-    createExhibit(ex, x, 2.0, z, rotY, normal);
+    const row = i % 2;                       // alternate so neighbours look distinct
+    const col = Math.floor(i / 2);
+    const z = room.zStart + margin + spacing * (col + 0.5);
+    const y = row === 0 ? 2.55 : 1.55;
+    createExhibit(ex, x, y, z, rotY, normal);
   });
 }
 
@@ -3193,10 +3679,8 @@ function createExhibit(ex, x, y, z, rotY, normal) {
   }
   rebuildFrame(frameW, frameH);
 
-  // Plaque below frame
-  const plaqueGroup = createWallPlaque(ex.title, ex.date);
-  plaqueGroup.position.set(0, -frameH/2 - 0.3, 0.06);
-  group.add(plaqueGroup);
+  // (Per-photo plaque removed — photos are wordless now. The one-per-country
+  //  "tomb" monument carries the story; photos just zoom in when interacted.)
 
   // NOTE: per-painting SpotLights were removed. 30+ spots in one scene forced
   // Three.js to compile enormous fragment shaders that exceed the
@@ -3218,7 +3702,14 @@ function createExhibit(ex, x, y, z, rotY, normal) {
     mesh: interact,
     position: interact.position.clone(),
     type: 'exhibit',
-    exhibit: ex
+    exhibit: ex,
+    // Extra data the zoom handler needs: the frame group, its resting transform,
+    // the inward normal direction, and the rotY so the zoomed pose can match.
+    group,
+    restPosition: group.position.clone(),
+    restScale: group.scale.clone(),
+    normal,
+    rotY,
   });
 
   // Load photo
@@ -3245,7 +3736,6 @@ function createExhibit(ex, x, y, z, rotY, normal) {
         canvasMat.color.set(0xffffff);
         canvasMat.needsUpdate = true;
         rebuildFrame(w, h);
-        plaqueGroup.position.y = -h/2 - 0.3;
       },
       undefined,
       (err) => {
@@ -3383,7 +3873,7 @@ document.addEventListener('keydown', (e) => {
       if (currentFocus) activateFocus();
       break;
     case 'Escape':
-      closePlaque(); closeLetter();
+      PhotoZoom.releaseActive(); closeTomb(); closeLetter();
       break;
   }
 });
@@ -3498,6 +3988,127 @@ function tryMoveTo(nx, nz) {
 let currentFocus = null;
 const raycaster = new THREE.Raycaster();
 
+// ---------------- Photo zoom (no plaque, just grow-close) ----------------
+// Each photo frame lives on a wall at its resting transform. When the visitor
+// activates a frame, we animate its group toward a pose that floats it in
+// front of the player (~1.1m away, scaled ~2.4×) and dims the rest of the
+// scene with a subtle vignette. Activating again — or walking away — eases
+// the frame back to its resting pose. Nothing is hidden, nothing reads text.
+const PhotoZoom = (() => {
+  let active = null;           // interactable currently zoomed
+  const tracked = new Set();   // interactables mid-animation (incl. rest-returning)
+  let vignette = null;         // DOM element applied to scene overlay
+
+  function ensureVignette() {
+    if (vignette) return vignette;
+    vignette = document.createElement('div');
+    vignette.id = 'zoom-vignette';
+    vignette.style.cssText = `
+      position:fixed; inset:0; pointer-events:none; z-index:40;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%);
+      opacity:0; transition: opacity .45s ease-out;
+    `;
+    document.body.appendChild(vignette);
+    return vignette;
+  }
+
+  function zoomTargetFor(it) {
+    // Float the frame 1.1m in front of the camera, eye-level, facing the player.
+    const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
+    const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+    const target = camPos.clone().addScaledVector(fwd, 1.25);
+    // Face the player (yaw toward camera along XZ plane)
+    const yaw = Math.atan2(camPos.x - target.x, camPos.z - target.z);
+    return { pos: target, yaw, scale: 2.3 };
+  }
+
+  function toggle(it) {
+    ensureVignette();
+    if (active === it) {
+      // Send it home.
+      active = null;
+      it.zoomState = 'resting';
+      tracked.add(it);
+      vignette.style.opacity = '0';
+      return;
+    }
+    // If another frame is zoomed, send it home first.
+    if (active && active !== it) {
+      active.zoomState = 'resting';
+      tracked.add(active);
+    }
+    active = it;
+    it.zoomTarget = zoomTargetFor(it);
+    it.zoomState = 'zooming';
+    tracked.add(it);
+    vignette.style.opacity = '1';
+    Progress.mark(it.exhibit);
+    if (navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function releaseActive() {
+    if (!active) return;
+    const it = active;
+    active = null;
+    it.zoomState = 'resting';
+    tracked.add(it);
+    if (vignette) vignette.style.opacity = '0';
+  }
+
+  // Called each frame by the main loop. Lerps positions & scales and prunes
+  // interactables that have reached their pose (within 1cm / 1%).
+  function update(dt) {
+    const done = [];
+    const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
+    tracked.forEach(it => {
+      const g = it.group; if (!g) { done.push(it); return; }
+      const k = 1 - Math.exp(-dt * 7);  // frame-rate-independent smoothing
+      let targetPos, targetYaw, targetScale;
+      if (it.zoomState === 'zooming') {
+        // Recompute target every frame in case camera drifts (subtle follow)
+        it.zoomTarget = zoomTargetFor(it);
+        targetPos   = it.zoomTarget.pos;
+        targetYaw   = it.zoomTarget.yaw;
+        targetScale = it.zoomTarget.scale;
+      } else {
+        targetPos   = it.restPosition;
+        targetYaw   = it.rotY;
+        targetScale = 1;
+      }
+      g.position.lerp(targetPos, k);
+      // shortest-arc yaw lerp
+      let dy = targetYaw - g.rotation.y;
+      while (dy >  Math.PI) dy -= Math.PI * 2;
+      while (dy < -Math.PI) dy += Math.PI * 2;
+      g.rotation.y += dy * k;
+      const s = g.scale.x + (targetScale - g.scale.x) * k;
+      g.scale.set(s, s, s);
+      // Done?
+      const posDelta = g.position.distanceTo(targetPos);
+      const scaleDelta = Math.abs(s - targetScale);
+      if (it.zoomState === 'resting' && posDelta < 0.01 && scaleDelta < 0.01) {
+        g.position.copy(targetPos);
+        g.rotation.y = targetYaw;
+        g.scale.setScalar(1);
+        done.push(it);
+      }
+    });
+    done.forEach(it => tracked.delete(it));
+
+    // Auto-release if the player walks away from the zoomed frame.
+    if (active && camPos.distanceTo(active.restPosition) > 4.8) {
+      releaseActive();
+    }
+  }
+
+  return {
+    toggle,
+    releaseActive,
+    update,
+    get active() { return active; },
+  };
+})();
+
 function updateFocus() {
   const obj = controls.getObject();
   const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
@@ -3521,9 +4132,20 @@ function updateFocus() {
     cross.classList.add('active');
     prompt.classList.add('show');
     if (isTouch) mobileBtn.classList.add('show');
-    const label = currentFocus.type === 'letter' ? 'Read the letter' : 'Read plaque';
+    let label;
+    if (currentFocus.type === 'letter') label = 'Read the letter';
+    else if (currentFocus.type === 'tomb') label = 'Read the monument';
+    else if (currentFocus.type === 'exhibit') {
+      label = PhotoZoom.active === currentFocus ? 'Step back' : 'Look closer';
+    } else label = 'Interact';
     document.getElementById('prompt-label').textContent = label;
-    if (isTouch) mobileBtn.textContent = currentFocus.type === 'letter' ? 'Read Letter' : 'Read Plaque';
+    if (isTouch) {
+      if (currentFocus.type === 'letter')      mobileBtn.textContent = 'Read Letter';
+      else if (currentFocus.type === 'tomb')   mobileBtn.textContent = 'Read Monument';
+      else if (currentFocus.type === 'exhibit')mobileBtn.textContent =
+        PhotoZoom.active === currentFocus ? 'Step Back' : 'Look Closer';
+      else mobileBtn.textContent = 'Interact';
+    }
   } else {
     cross.classList.remove('active');
     prompt.classList.remove('show');
@@ -3535,49 +4157,60 @@ function activateFocus() {
   if (!currentFocus) return;
   if (currentFocus.type === 'letter') {
     openLetter();
+  } else if (currentFocus.type === 'tomb') {
+    openTombStory(currentFocus.tomb);
   } else {
-    openPlaque(currentFocus.exhibit);
+    PhotoZoom.toggle(currentFocus);
   }
 }
 
-// ---------------- Plaque & letter UI ----------------
+// ---------------- Tomb story & letter UI ----------------
+// The plaque-reader overlay is now reused as the tomb-story reader. Instead
+// of showing a single photo's caption, it shows the country's summarised
+// story — one memorial card per room, written by buildCountryTomb().
 const plaqueReader = document.getElementById('plaque-reader');
-// Roman numeral helper (up to 30, enough for any museum)
+// Roman numeral helper (expanded to 100+ for bigger museums)
 const ROMAN_NUMERALS = ['', 'I','II','III','IV','V','VI','VII','VIII','IX','X',
                         'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX',
-                        'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX'];
+                        'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX',
+                        'XXXI','XXXII','XXXIII','XXXIV','XXXV','XXXVI','XXXVII','XXXVIII','XXXIX','XL',
+                        'XLI','XLII','XLIII','XLIV','XLV','XLVI','XLVII','XLVIII','XLIX','L',
+                        'LI','LII','LIII','LIV','LV','LVI','LVII','LVIII','LIX','LX',
+                        'LXI','LXII','LXIII','LXIV','LXV','LXVI','LXVII','LXVIII','LXIX','LXX',
+                        'LXXI','LXXII','LXXIII','LXXIV','LXXV','LXXVI','LXXVII','LXXVIII','LXXIX','LXXX',
+                        'LXXXI','LXXXII','LXXXIII','LXXXIV','LXXXV','LXXXVI','LXXXVII','LXXXVIII','LXXXIX','XC',
+                        'XCI','XCII','XCIII','XCIV','XCV','XCVI','XCVII','XCVIII','XCIX','C'];
 const toRoman = (n) => ROMAN_NUMERALS[n] || String(n);
 
-function openPlaque(ex) {
-  // Catalog number — exhibit's 1-based index "III · VIII" (of total)
-  const idx = CFG.exhibits.findIndex(e => e === ex) + 1;
-  const total = CFG.exhibits.length;
+function openTombStory(tomb) {
+  // tomb = { roomKey, title, subtitle, story, photoSrc, index, total }
   const catalogEl = document.getElementById('p-catalog');
-  if (catalogEl) catalogEl.textContent = `${toRoman(idx)} · ${toRoman(total)}`;
-  document.getElementById('p-title').textContent = ex.title;
-  document.getElementById('p-date').textContent = ex.date || '';
-  document.getElementById('p-body').textContent = ex.plaque;
-  // Photo is nested inside the card — no more separate overlay that could
-  // occlude the text. Resolve through PHOTO_DATA if the build inlined it.
+  if (catalogEl) catalogEl.textContent = `${toRoman(tomb.index)} · ${toRoman(tomb.total)}`;
+  document.getElementById('p-title').textContent = tomb.title;
+  document.getElementById('p-date').textContent = tomb.subtitle || '';
+  document.getElementById('p-body').textContent = tomb.story;
   const img = document.getElementById('p-photo');
-  if (img && ex.src) {
-    img.src = (window.PHOTO_DATA && window.PHOTO_DATA[ex.src]) || ex.src;
+  if (img) {
+    if (tomb.photoSrc) {
+      img.style.display = '';
+      img.src = (window.PHOTO_DATA && window.PHOTO_DATA[tomb.photoSrc]) || tomb.photoSrc;
+    } else {
+      img.style.display = 'none';
+      img.removeAttribute('src');
+    }
   }
-  // Scroll the card back to top each open — if she scrolled to read the
-  // last plaque, the next one should start at the photo.
   const card = plaqueReader.querySelector('.card');
   if (card) card.scrollTop = 0;
   plaqueReader.classList.add('show');
   if (controls.isLocked) controls.unlock();
-  Progress.mark(ex);
   if (navigator.vibrate) navigator.vibrate(20);
 }
-function closePlaque() {
+function closeTomb() {
   plaqueReader.classList.remove('show');
   if (!isTouch) setTimeout(() => controls.lock(), 300);
 }
-document.getElementById('close-plaque').addEventListener('click', closePlaque);
-plaqueReader.addEventListener('click', (e) => { if (e.target === plaqueReader) closePlaque(); });
+document.getElementById('close-plaque').addEventListener('click', closeTomb);
+plaqueReader.addEventListener('click', (e) => { if (e.target === plaqueReader) closeTomb(); });
 
 const letterOverlay = document.getElementById('letter-overlay');
 function openLetter() {
@@ -3989,6 +4622,7 @@ function animate() {
     pos.needsUpdate = true;
   });
 
+  PhotoZoom.update(dt);
   updateFocus();
   renderer.render(scene, camera);
 }
