@@ -195,6 +195,113 @@ def polaroid_pile(photos, canvas=(2400, 1600), bg=(13, 11, 8)):
         out.paste(pol_rot, (cx - pw // 2, cy - ph // 2), pol_rot)
     return out.convert('RGB')
 
+# ---------- collage 5: contact sheet (4 frames in a 2x2 grid with grease-pencil marks) ----------
+
+def contact_sheet(photos, cell_w=720, cell_h=1000, gap=40,
+                  bg=(18, 14, 9), sheet_bg=(38, 28, 14),
+                  frame_color=(250, 236, 204), grease=(210, 60, 40),
+                  label=""):
+    """Photographer's contact sheet: 4 frames with frame numbers and a red
+    grease-pencil "selected" mark on the best one. Evokes the bartender
+    flipping through shots and choosing the keeper."""
+    assert len(photos) >= 4
+    cols, rows = 2, 2
+    outer = 80
+    W = outer * 2 + cols * cell_w + (cols - 1) * gap
+    H = outer * 2 + rows * cell_h + (rows - 1) * gap + 60  # extra for caption strip
+    out = Image.new('RGB', (W, H), bg)
+    draw = ImageDraw.Draw(out)
+
+    # Inner dark "sheet" rectangle
+    draw.rectangle([outer - 30, outer - 30, W - outer + 30, H - outer + 30],
+                   fill=sheet_bg)
+
+    for i, p in enumerate(photos[:4]):
+        c, r = i % cols, i // cols
+        x = outer + c * (cell_w + gap)
+        y = outer + r * (cell_h + gap)
+        # Cover-crop photo into the cell (so all 4 frames match proportion)
+        img = cover(p, cell_w, cell_h)
+        out.paste(img, (x, y))
+        # Thin cream border (like a 35mm frame)
+        draw.rectangle([x - 3, y - 3, x + cell_w + 2, y + cell_h + 2],
+                       outline=frame_color, width=3)
+        # Frame number in the corner
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf", 46)
+        except Exception:
+            font = ImageFont.load_default()
+        draw.text((x + 18, y + cell_h + 12), f"— {i+1:02d} —",
+                  fill=frame_color, font=font)
+
+    # Grease-pencil circle around the second frame (the "chosen" take)
+    chosen_c, chosen_r = 1, 0
+    cx = outer + chosen_c * (cell_w + gap) + cell_w // 2
+    cy = outer + chosen_r * (cell_h + gap) + cell_h // 2
+    rad_x = cell_w // 2 + 22
+    rad_y = cell_h // 2 + 22
+    for w in (9, 7, 5):
+        draw.ellipse([cx - rad_x, cy - rad_y, cx + rad_x, cy + rad_y],
+                     outline=grease, width=w)
+    # A diagonal grease tick across the "rejected" first frame
+    rej_x = outer + cell_w // 2
+    rej_y = outer + cell_h // 2
+    draw.line([rej_x - cell_w/2 + 20, rej_y + cell_h/2 - 20,
+               rej_x + cell_w/2 - 20, rej_y - cell_h/2 + 20],
+              fill=grease, width=8)
+
+    return out
+
+
+# ---------- collage 6: overlapping memory pile (candid scatter) ----------
+
+def memory_pile(photos, canvas=(2400, 1600), bg=(8, 6, 5),
+                frame_color=(244, 234, 213), shadow_alpha=180):
+    """Memory-pile: 4-5 photos scattered at ~random rotations, overlapping,
+    with soft drop-shadows — like photos laid on a dark bar table, or a
+    night you half-remember. Order matters: top photo in the pile is the
+    keeper."""
+    out = Image.new('RGBA', canvas, bg + (255,))
+    W, H = canvas
+    layouts = [
+        dict(pos=(0.28, 0.52), angle=-14, scale=1.00),
+        dict(pos=(0.48, 0.46), angle=+8,  scale=1.05),
+        dict(pos=(0.66, 0.55), angle=-4,  scale=1.02),
+        dict(pos=(0.82, 0.44), angle=+11, scale=0.98),
+        dict(pos=(0.55, 0.68), angle=+2,  scale=0.95),
+    ]
+    border = 22  # photo matte
+    photo_w = 760
+    photo_h = 1060
+    for photo, lay in zip(photos, layouts):
+        s = lay['scale']
+        w_ph = int(photo_w * s)
+        h_ph = int(photo_h * s)
+        # Build a framed photo: cream matte around cover-cropped image
+        frame_w = w_ph + border * 2
+        frame_h = h_ph + border * 3  # extra at bottom like a polaroid
+        tile = Image.new('RGB', (frame_w, frame_h), frame_color)
+        tile.paste(cover(photo, w_ph, h_ph), (border, border))
+        # Hairline inner edge
+        ImageDraw.Draw(tile).rectangle([border - 1, border - 1, border + w_ph, border + h_ph],
+                                        outline=(120, 98, 60), width=1)
+        tile_rgba = tile.convert('RGBA')
+
+        # Drop shadow: a black rectangle at the same size, blurred and rotated with the photo
+        sh = Image.new('RGBA', tile_rgba.size, (0, 0, 0, 0))
+        ImageDraw.Draw(sh).rectangle([0, 0, tile_rgba.size[0], tile_rgba.size[1]],
+                                     fill=(0, 0, 0, shadow_alpha))
+        sh = sh.filter(ImageFilter.GaussianBlur(radius=22))
+
+        pol_rot = tile_rgba.rotate(lay['angle'], expand=True, resample=Image.BICUBIC)
+        sh_rot = sh.rotate(lay['angle'], expand=True, resample=Image.BICUBIC)
+        pw, ph = pol_rot.size
+        cx, cy = int(W * lay['pos'][0]), int(H * lay['pos'][1])
+        out.paste(sh_rot, (cx - pw // 2 + 26, cy - ph // 2 + 30), sh_rot)
+        out.paste(pol_rot, (cx - pw // 2, cy - ph // 2), pol_rot)
+    return out.convert('RGB')
+
+
 # ---------- main ----------
 
 def main():
@@ -207,25 +314,37 @@ def main():
     xmas = [load(i) for i in range(2, 6)]
     img = proof_grid(xmas, cols=2, rows=2, cell_w=850, cell_h=1135)
     img.save(PHOTOS / "collage-christmas.jpg", quality=85, optimize=True, progressive=True)
-    print(f"  collage-christmas.jpg  {img.size[0]}x{img.size[1]}  (2x2 proof grid)")
+    print(f"  collage-christmas.jpg      {img.size[0]}x{img.size[1]}  (2x2 proof grid)")
 
     # 2) Avocado House: 2x4 filmstrip with sprocket holes (photos 06-13, portrait)
     avo = [load(i) for i in range(6, 14)]
     img = filmstrip(avo, frame_w=440, frame_h=620, frames_per_row=4)
     img.save(PHOTOS / "collage-avocado.jpg", quality=85, optimize=True, progressive=True)
-    print(f"  collage-avocado.jpg    {img.size[0]}x{img.size[1]}  (2x4 filmstrip w/ sprockets)")
+    print(f"  collage-avocado.jpg        {img.size[0]}x{img.size[1]}  (2x4 filmstrip w/ sprockets)")
 
-    # 3) China arcade: horizontal triptych (photos 22-24, portrait)
+    # 3) Four Strangers bar: contact sheet (photos 14-17)
+    strangers = [load(i) for i in range(14, 18)]
+    img = contact_sheet(strangers)
+    img.save(PHOTOS / "collage-four-strangers.jpg", quality=85, optimize=True, progressive=True)
+    print(f"  collage-four-strangers.jpg {img.size[0]}x{img.size[1]}  (contact sheet, chosen frame)")
+
+    # 4) Second Bar / the beanie: memory pile (photos 18-21)
+    second = [load(i) for i in range(18, 22)]
+    img = memory_pile(second, canvas=(2400, 1600))
+    img.save(PHOTOS / "collage-second-bar.jpg", quality=85, optimize=True, progressive=True)
+    print(f"  collage-second-bar.jpg     {img.size[0]}x{img.size[1]}  (memory pile, 4 frames)")
+
+    # 5) China arcade: horizontal triptych (photos 22-24, portrait)
     arc = [load(i) for i in range(22, 25)]
     img = triptych(arc, panel_w=780, panel_h=1320)
     img.save(PHOTOS / "collage-arcade.jpg", quality=85, optimize=True, progressive=True)
-    print(f"  collage-arcade.jpg     {img.size[0]}x{img.size[1]}  (horizontal triptych)")
+    print(f"  collage-arcade.jpg         {img.size[0]}x{img.size[1]}  (horizontal triptych)")
 
-    # 4) Hotel: polaroid pile (photos 26-30, portrait)
+    # 6) Hotel: polaroid pile (photos 26-30, portrait)
     hot = [load(i) for i in range(26, 31)]
     img = polaroid_pile(hot, canvas=(2400, 1500))
     img.save(PHOTOS / "collage-hotel.jpg", quality=85, optimize=True, progressive=True)
-    print(f"  collage-hotel.jpg      {img.size[0]}x{img.size[1]}  (polaroid pile, 5 frames)")
+    print(f"  collage-hotel.jpg          {img.size[0]}x{img.size[1]}  (polaroid pile, 5 frames)")
 
     print("\nDone. Collages saved alongside source photos.")
 

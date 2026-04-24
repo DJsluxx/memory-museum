@@ -183,60 +183,75 @@
     background: rgba(10,8,6,0); backdrop-filter: blur(0px);
     pointer-events: none; transition: background 0.5s ease, backdrop-filter 0.5s ease;
   }
-  #plaque-reader.show { background: rgba(10,8,6,0.85); backdrop-filter: blur(10px); pointer-events: auto; }
+  #plaque-reader.show { background: rgba(10,8,6,0.92); backdrop-filter: blur(14px); pointer-events: auto; }
   #plaque-reader .card {
     max-width: 620px; width: 100%;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
     background: linear-gradient(180deg, #f8f0da 0%, #f0e3c5 100%);
-    color: var(--ink); padding: 3.2rem 3.5rem 2.8rem; border-radius: 2px;
-    box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px var(--brass) inset, 0 0 0 8px rgba(196,160,90,0.15);
+    color: var(--ink);
+    padding: 0;
+    border-radius: 2px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.75), 0 0 0 1px var(--brass) inset, 0 0 0 8px rgba(196,160,90,0.15);
     transform: translateY(24px) scale(0.98); opacity: 0;
     transition: all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
     position: relative;
   }
   #plaque-reader.show .card { transform: translateY(0) scale(1); opacity: 1; }
-  /* Ornamental top/bottom flourish */
-  #plaque-reader .card::before {
-    content: "◆"; position: absolute; top: 1.1rem; left: 50%; transform: translateX(-50%);
-    color: var(--brass); font-size: 0.8rem;
+  /* Photo lives at the top of the card so it can't occlude the plaque text. */
+  #plaque-reader .photo-wrap {
+    width: 100%; background: #0a0806;
+    border-bottom: 1px solid rgba(139,110,56,0.35);
+    max-height: 45vh; overflow: hidden; display: flex; align-items: center; justify-content: center;
   }
-  #plaque-reader .card::after {
-    content: ""; position: absolute; bottom: 1.6rem; left: 50%; transform: translateX(-50%);
+  #plaque-reader .photo-wrap img {
+    max-width: 100%; max-height: 45vh; display: block; object-fit: contain;
+  }
+  #plaque-reader .card-body { padding: 2.4rem 2.4rem 2.4rem; position: relative; }
+  #plaque-reader .card-body::after {
+    content: ""; position: absolute; bottom: 0.9rem; left: 50%; transform: translateX(-50%);
     width: 56px; height: 1px;
     background: linear-gradient(90deg, transparent, var(--brass), transparent);
   }
   #plaque-reader .catalog {
     font-family: "Cormorant Garamond", serif; font-weight: 400;
-    font-size: 0.8rem; letter-spacing: 0.4em; text-transform: uppercase;
-    color: rgba(139,110,56,0.8); text-align: center;
-    margin-bottom: 1.3rem;
+    font-size: 0.72rem; letter-spacing: 0.4em; text-transform: uppercase;
+    color: rgba(139,110,56,0.85); text-align: center;
+    margin-bottom: 1rem;
   }
   #plaque-reader h2 {
     font-family: "Cormorant Garamond", serif; font-weight: 500;
-    font-size: clamp(1.9rem, 4.2vw, 2.8rem); line-height: 1.1; margin-bottom: 0.4rem;
+    font-size: clamp(1.6rem, 4.2vw, 2.3rem); line-height: 1.1; margin-bottom: 0.35rem;
     color: var(--warm-black); text-align: center;
   }
   #plaque-reader .date {
     font-family: "Fraunces", serif; font-style: italic; font-weight: 300;
-    color: #7a6a4a; text-align: center; margin-bottom: 2rem; font-size: 1rem;
+    color: #7a6a4a; text-align: center; margin-bottom: 1.3rem; font-size: 0.95rem;
   }
   #plaque-reader .plaque-divider {
     width: 40px; height: 1px; background: rgba(139,110,56,0.4);
-    margin: 0 auto 2rem;
+    margin: 0 auto 1.3rem;
   }
   #plaque-reader .body {
-    font-family: "Fraunces", serif; font-weight: 300; font-size: 1.08rem; line-height: 1.8;
+    font-family: "Fraunces", serif; font-weight: 300; font-size: 1.02rem; line-height: 1.75;
     color: var(--ink); white-space: pre-wrap;
   }
   #plaque-reader .close {
-    position: absolute; top: 0.8rem; right: 0.8rem; width: 36px; height: 36px;
-    border: none; background: transparent; color: rgba(139,110,56,0.6); cursor: pointer;
-    font-size: 1.3rem; transition: color 0.3s, transform 0.3s;
+    position: absolute; top: 0.7rem; right: 0.7rem; width: 40px; height: 40px;
+    border: none; background: rgba(10,8,6,0.55); color: var(--cream); cursor: pointer;
+    font-size: 1.4rem; line-height: 1; border-radius: 50%;
+    transition: background 0.3s, transform 0.3s;
     display: flex; align-items: center; justify-content: center;
+    z-index: 2;
   }
-  #plaque-reader .close:hover { color: var(--warm-black); transform: rotate(90deg); }
+  #plaque-reader .close:hover { background: rgba(10,8,6,0.85); transform: rotate(90deg); }
   #plaque-reader .hint {
-    margin-top: 1.8rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.35em;
+    margin-top: 1.4rem; text-align: center; font-size: 0.64rem; letter-spacing: 0.3em;
     text-transform: uppercase; color: rgba(139,110,56,0.55);
+  }
+  @media (hover: none) and (pointer: coarse) {
+    #plaque-reader .card-body { padding: 1.8rem 1.4rem 1.8rem; }
+    #plaque-reader .photo-wrap, #plaque-reader .photo-wrap img { max-height: 40vh; }
   }
 
   /* ---------- LETTER OVERLAY ---------- */
@@ -525,32 +540,6 @@
     text-transform: uppercase; color: rgba(196,160,90,0.5);
   }
 
-  /* ---------- PHOTO ZOOM (interact on an exhibit lifts it) ---------- */
-  #photo-zoom {
-    position: fixed; inset: 0; z-index: 62; pointer-events: none;
-    display: flex; align-items: center; justify-content: center; padding: 2rem;
-    background: rgba(6,4,3,0);
-    opacity: 0; visibility: hidden;
-    transition: background 0.5s ease, opacity 0.5s ease, visibility 0s linear 0.5s;
-  }
-  #photo-zoom.show {
-    background: rgba(6,4,3,0.88); pointer-events: auto;
-    opacity: 1; visibility: visible;
-    transition: background 0.5s ease, opacity 0.5s ease, visibility 0s linear 0s;
-  }
-  #photo-zoom img {
-    max-width: 88vw; max-height: 78vh; object-fit: contain;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.7), 0 0 0 8px rgba(196,160,90,0.14), 0 0 0 1px var(--brass) inset;
-    opacity: 0; transform: scale(0.96);
-    transition: all 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  #photo-zoom.show img { opacity: 1; transform: scale(1); }
-  #photo-zoom .zoom-hint {
-    position: absolute; bottom: 2.2rem; left: 50%; transform: translateX(-50%);
-    font-family: "DM Sans", sans-serif; font-size: 0.65rem; letter-spacing: 0.3em;
-    text-transform: uppercase; color: rgba(244,234,213,0.55);
-  }
-
   /* ---------- SAFE AREA (notches & rounded phones) ---------- */
   @supports (padding: env(safe-area-inset-top)) {
     #hud { top: calc(1.75rem + env(safe-area-inset-top)); left: calc(1.75rem + env(safe-area-inset-left)); }
@@ -693,12 +682,15 @@
 <div id="plaque-reader">
   <div class="card">
     <button class="close" id="close-plaque" aria-label="Close">×</button>
-    <div class="catalog" id="p-catalog">I · VIII</div>
-    <h2 id="p-title"></h2>
-    <div class="date" id="p-date"></div>
-    <div class="plaque-divider"></div>
-    <div class="body" id="p-body"></div>
-    <div class="hint">Press ESC or click outside to return</div>
+    <div class="photo-wrap"><img id="p-photo" alt="" /></div>
+    <div class="card-body">
+      <div class="catalog" id="p-catalog">I · VIII</div>
+      <h2 id="p-title"></h2>
+      <div class="date" id="p-date"></div>
+      <div class="plaque-divider"></div>
+      <div class="body" id="p-body"></div>
+      <div class="hint">Tap outside to return</div>
+    </div>
   </div>
 </div>
 
@@ -754,12 +746,6 @@
   </div>
 </div>
 
-<!-- Photo zoom (tap an artwork to enlarge it briefly) -->
-<div id="photo-zoom">
-  <img id="photo-zoom-img" alt="" />
-  <div class="zoom-hint">Tap anywhere to return</div>
-</div>
-
 <!-- Guestbook (opens at the end of the letter room) -->
 <div id="guestbook">
   <div class="gb-card">
@@ -808,72 +794,31 @@ I love you.`,
   // The "room" property assigns it to a gallery room.
   // Rooms: "beginnings", "journeys", "home", (room "foyer" and "letter" hold no photos)
   // If you have fewer/more photos than slots, they auto-arrange.
+  // Similar-series photos are grouped into single creative collage artworks
+  // rather than ten near-identical frames on one wall. Each collage is a
+  // composed image (proof grid, filmstrip, contact sheet, memory pile).
   exhibits: [
     // ====== JAPAN ======
-    { room: "japan", src: "photos/01.jpg", title: "Dotonbori",              date: "Osaka · first night",
+    { room: "japan", src: "photos/01.jpg", title: "Dotonbori", date: "Osaka · first night",
       plaque: "The canal was behind us. The yellow Ebisu Tower was still turning. I leaned in. You had already leaned in." },
-    { room: "japan", src: "photos/02.jpg", title: "The Red Tree",            date: "December · evening",
-      plaque: "Glass ornaments end to end, each one a small lantern. We stopped because everyone was stopping. Then we stopped because we wanted to." },
-    { room: "japan", src: "photos/03.jpg", title: "Your Turn",               date: "the same tree",
-      plaque: "You pulled me closer. The ornaments behind you were out of focus. Your eyes weren't." },
-    { room: "japan", src: "photos/04.jpg", title: "My Turn",                 date: "still the tree",
-      plaque: "Different angle. The tree got taller, you got smaller. Two people in front of something beautiful — which by then, we also were." },
-    { room: "japan", src: "photos/05.jpg", title: "The Last One",            date: "before we walked away",
-      plaque: "You can see it in how we're both trying not to laugh. The tree is still there, probably. We're somewhere else now." },
-    { room: "japan", src: "photos/06.jpg", title: "Avocado House",           date: "the dinner that ran long",
-      plaque: "A Mexican place in Japan with a mural that ended up in every frame. Still standing, still reading the menu in our heads." },
-    { room: "japan", src: "photos/07.jpg", title: "Kissed in Front of an Avocado", date: "same wall, closer",
-      plaque: "You leaned over. The mural kept being a mural. I kept being amused to be kissed in front of it." },
-    { room: "japan", src: "photos/08.jpg", title: "Between Courses",         date: "the food arrived",
-      plaque: "Edge of a plate at the bottom of the frame. Good enough to stop for a photo means the photo wins." },
-    { room: "japan", src: "photos/09.jpg", title: "The Light Hit Right",     date: "still eating",
-      plaque: "You turned your head slightly and the light changed. Twenty photos for this one." },
-    { room: "japan", src: "photos/10.jpg", title: "Camera Handoff",          date: "my turn in the chair",
-      plaque: "I handed you the phone. You held it higher than I would have. The ceiling light photobombed. I love this one anyway." },
-    { room: "japan", src: "photos/11.jpg", title: "Restaurant Selfie",       date: "back to the phone",
-      plaque: "The waiter walked behind us at exactly the right moment, out of focus, doing his job." },
-    { room: "japan", src: "photos/12.jpg", title: "Caught Laughing",         date: "something you said",
-      plaque: "You said something — I don't remember what. My eyes are closed. Your mouth is open. Technically terrible. One of my favorites." },
-    { room: "japan", src: "photos/13.jpg", title: "Red Wall, Green Wall",    date: "check finally arrived",
-      plaque: "The last photo before we put the phone down. Two faces, one evening, gone." },
-    { room: "japan", src: "photos/14.jpg", title: "Four Strangers",          date: "a bar in Tokyo",
-      plaque: "We walked in as a couple. Three men at the bar said something in Japanese; we didn't understand; they said it again with their hands. Second round, we were six friends. The bartender took this. He wouldn't accept a tip." },
-    { room: "japan", src: "photos/15.jpg", title: "Everyone Looked",         date: "second of two",
-      plaque: "Thumbs up, peace sign, tongue out. The Bushmills bottle on the left was half empty. We were half full." },
-    { room: "japan", src: "photos/16.jpg", title: "The Blur",                date: "third attempt",
-      plaque: "Someone called for another photo. We rearranged. The blue shelf-light overexposed. We kept this one for your smile." },
-    { room: "japan", src: "photos/17.jpg", title: "One More, Then We'll Go", date: "the bartender indulged us",
-      plaque: "Our new friend in the middle had a joke no one else caught. He tells it to his own face in the frame." },
-    { room: "japan", src: "photos/18.jpg", title: "The Second Bar",          date: "after the first one closed",
-      plaque: "The first bar had closed. This one hadn't. Good nights relocate. Darker lights, louder music, a corner." },
-    { room: "japan", src: "photos/19.jpg", title: "The Beanie",              date: "a few drinks in",
-      plaque: "Silver hair, a white beanie with Japanese gothic stitching. He leaned in. We never learned his name. We remember the hat." },
-    { room: "japan", src: "photos/20.jpg", title: "Closer",                  date: "the phone came closer",
-      plaque: "The stitching was clearer now, and still unreadable. Half-lit faces. This is what bars look like from the inside." },
-    { room: "japan", src: "photos/21.jpg", title: "Last Call",               date: "almost three in the morning",
-      plaque: "Peace signs and thumbs up, a full bar behind us, a beanie that would stay in Tokyo forever. Outside, Tokyo was quiet in the specific way it gets quiet at three." },
-    { room: "japan", src: "photos/25.jpg", title: "Shinkansen",              date: "somewhere north · 300 km/h",
+    { room: "japan", src: "photos/collage-christmas.jpg", title: "The Red Tree, Four Times", date: "December · evening",
+      plaque: "Glass ornaments end to end, each one a small lantern. We stopped because everyone was stopping — then we stopped because we wanted to. Four takes, one tree, both of us trying not to laugh by the last one. The tree is still there, probably. We're somewhere else now." },
+    { room: "japan", src: "photos/collage-avocado.jpg", title: "Avocado House", date: "the dinner that ran long",
+      plaque: "A Mexican place in Japan with a mural that ended up in every frame. Eight takes across one dinner — reading the menu, between courses, the light that hit right for one second, a waiter walking behind us at exactly the wrong moment. Red wall, green wall, two faces, one evening." },
+    { room: "japan", src: "photos/collage-four-strangers.jpg", title: "Four Strangers, Then Four Friends", date: "a bar in Tokyo",
+      plaque: "We walked in as a couple. Three men at the bar said something in Japanese; we didn't understand; they said it again with their hands. Second round we were six friends. The bartender took four. He picked the one in the top right. He wouldn't accept a tip." },
+    { room: "japan", src: "photos/collage-second-bar.jpg", title: "The Second Bar", date: "after the first one closed",
+      plaque: "The first bar had closed. This one hadn't. Somewhere mid-night a stranger in a white beanie sat next to us and leaned into our photo. We never learned his name. We remember the hat. Four frames, one corner of Tokyo, three in the morning." },
+    { room: "japan", src: "photos/25.jpg", title: "Shinkansen", date: "somewhere north · 300 km/h",
       plaque: "You stuck your tongue out. I threw a peace sign. The passenger across the aisle pretended not to see us. Not yet spring, all of it ours for the week." },
 
     // ====== CHINA ======
-    { room: "china", src: "photos/22.jpg", title: "Shall We Share More Cheese?", date: "an arcade, one afternoon",
-      plaque: "The wall asked the question in English. We took the photo as an answer. Every surface cartooned, every reflection with us in it twice." },
-    { room: "china", src: "photos/23.jpg", title: "Between the Claw Machines", date: "still the arcade",
-      plaque: "A thousand stuffed animals in little glass prisons, all staring up. Fluorescent lights made your hair almost blue." },
-    { room: "china", src: "photos/24.jpg", title: "The Exit Shot",           date: "before we left",
-      plaque: "One more before the door. Tom in one corner, Jerry in another, both watching us leave. The arcade would be here next year. We wouldn't." },
+    { room: "china", src: "photos/collage-arcade.jpg", title: "CheeseZ", date: "an arcade, one afternoon",
+      plaque: "A wall asked if we wanted to share more cheese, in English. We took the photo as an answer. A thousand stuffed animals staring up from little glass prisons. The fluorescent lights above you made your hair almost blue. Tom in one corner, Jerry in another, both watching us leave." },
 
     // ====== KOREA (hotel mirror series; country to be GPS-verified) ======
-    { room: "korea", src: "photos/26.jpg", title: "Before We Went Out",      date: "a hotel, some evening",
-      plaque: "You in the cable-knit sweater and silver skirt; me in the flannel that had seen three countries. The mirror doing its job. Us doing ours." },
-    { room: "korea", src: "photos/27.jpg", title: "Between Us and the Mirror", date: "still not out",
-      plaque: "Between us was the phone. Behind the phone, the mirror. Behind the mirror, a city we hadn't seen yet. Meant to take two seconds. Took longer." },
-    { room: "korea", src: "photos/28.jpg", title: "You Fixed Your Hair",     date: "almost out the door",
-      plaque: "I had the phone up. You were still adjusting — one hand to the forehead. Sometimes the best version of the person you love is the one who doesn't know they're being photographed yet." },
-    { room: "korea", src: "photos/29.jpg", title: "The Teal Wall",           date: "the room they'll clean tomorrow",
-      plaque: "The bed we hadn't made. The bag on the floor. The teal that belonged to no one in particular. We remember where we stayed by what the bathroom looked like." },
-    { room: "korea", src: "photos/30.jpg", title: "The Last Night",          date: "same mirror, packed suitcase",
-      plaque: "Bed made from housekeeping. Suitcase behind us. One more, then one more. The room would be someone else's tomorrow. Tonight, both of us fit inside the mirror." },
+    { room: "korea", src: "photos/collage-hotel.jpg", title: "The Room With the Teal Wall", date: "one hotel, five evenings",
+      plaque: "The cable-knit sweater and silver skirt; the flannel that had seen three countries. The bed we hadn't made, then the bed housekeeping remade, then the suitcase. Five takes in the same mirror on the same teal wall. The room would be someone else's tomorrow. Tonight, both of us fit inside it." },
   ]
 };
 </script>
@@ -1218,7 +1163,7 @@ MAT.bench = new THREE.MeshStandardMaterial({ color: 0x3a2a1d, roughness: 0.5, me
 
 // ---------------- Rooms (linear corridor museum) ----------------
 const WALL_H = 4.5;
-const DOOR_W = 2.2;
+const DOOR_W = 2.8;  // widened from 2.2 so touch-steering through is forgiving
 const DOOR_H = 3.2;
 
 // Country theme table — the ONLY place country display data lives.
@@ -2196,20 +2141,22 @@ function buildLetterRoom(room) {
   const frame = new THREE.Mesh(frameGeom, MAT.trim);
   frame.position.set(0, 2.2, backZ);
   scene.add(frame);
-  // Parchment canvas with letter text
+  // Parchment canvas with letter text.
+  // Pre-mirror the canvas: combined with the plane rendered on BackSide,
+  // the net result reads left-to-right for a viewer in front of the wall.
   const c = document.createElement('canvas'); c.width = 1024; c.height = 720;
   const ctx = c.getContext('2d');
+  ctx.translate(1024, 0);
+  ctx.scale(-1, 1);
   const grad = ctx.createLinearGradient(0, 0, 0, 720);
   grad.addColorStop(0, '#f8f0da'); grad.addColorStop(1, '#e8d9b3');
   ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 720);
-  // Aged specks
   for (let i = 0; i < 80; i++) {
     ctx.fillStyle = `rgba(120,90,50,${Math.random() * 0.08})`;
     ctx.beginPath();
     ctx.arc(Math.random() * 1024, Math.random() * 720, Math.random() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Text
   ctx.fillStyle = '#2a2016';
   ctx.font = 'italic 300 56px "Cormorant Garamond", serif';
   ctx.fillText(`My ${CFG.visitorName},`, 70, 110);
@@ -2226,14 +2173,19 @@ function buildLetterRoom(room) {
   // Plane will be rotated 180° so its front face points -Z (toward visitor).
   // Flip texture horizontally so text reads correctly after that rotation.
   tex.wrapS = THREE.RepeatWrapping;
-  tex.repeat.x = -1;
-  tex.offset.x = 1;
-  const letterMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, emissive: 0x221812, emissiveIntensity: 0.15 });
+  // Mount a plane facing -Z (toward the visitor) without a Y rotation:
+  // BackSide renders the texture from the back of the plane, which by
+  // Three.js convention is NOT mirrored — unlike rotation.y=PI, which is.
+  // This avoids CLAUDE.md #4's unreliable texture.repeat.x = -1 trick.
+  const letterMat = new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.9, emissive: 0x221812, emissiveIntensity: 0.15,
+    side: THREE.BackSide,
+  });
   const letterGeom = new THREE.PlaneGeometry(letterW, letterH);
   const letter = new THREE.Mesh(letterGeom, letterMat);
-  // Mount IN FRONT of the frame's front face so the brass frame acts as a lip around it
   letter.position.set(0, 2.2, backZ - 0.045);
-  letter.rotation.y = Math.PI; // face -Z, toward the visitor
+  // NO rotation — plane's default normal is +Z; with BackSide the visible
+  // surface is the -Z-facing back, which renders the texture upright.
   letter.userData.isLetter = true;
   scene.add(letter);
 
@@ -2800,7 +2752,10 @@ if (isTouch) {
 
 // ---------------- Collision-aware movement ----------------
 function tryMoveTo(nx, nz) {
-  const pad = 0.35;
+  // Collision padding — the effective doorway clearance is DOOR_W − 2·pad.
+  // 0.22 gives ~2.36 m clearance through a 2.8 m doorway: wide enough that
+  // even a slightly drifting joystick won't clip the jambs.
+  const pad = 0.22;
   for (const box of collisionBoxes) {
     if (nx > box.minX - pad && nx < box.maxX + pad &&
         nz > box.minZ - pad && nz < box.maxZ + pad) return false;
@@ -2871,30 +2826,27 @@ function openPlaque(ex) {
   document.getElementById('p-title').textContent = ex.title;
   document.getElementById('p-date').textContent = ex.date || '';
   document.getElementById('p-body').textContent = ex.plaque;
+  // Photo is nested inside the card — no more separate overlay that could
+  // occlude the text. Resolve through PHOTO_DATA if the build inlined it.
+  const img = document.getElementById('p-photo');
+  if (img && ex.src) {
+    img.src = (window.PHOTO_DATA && window.PHOTO_DATA[ex.src]) || ex.src;
+  }
+  // Scroll the card back to top each open — if she scrolled to read the
+  // last plaque, the next one should start at the photo.
+  const card = plaqueReader.querySelector('.card');
+  if (card) card.scrollTop = 0;
   plaqueReader.classList.add('show');
   if (controls.isLocked) controls.unlock();
-  // Record visit in progress so minimap dots / welcome-back text stay honest.
   Progress.mark(ex);
-  // Haptic tick — subtle; opt-out handled by the OS-level preference.
   if (navigator.vibrate) navigator.vibrate(20);
-  // Also lift the photo: an over-the-shoulder zoom that complements the plaque.
-  // CSS animates scale + fade, so we just swap the src + toggle .show.
-  const zoom = document.getElementById('photo-zoom');
-  const img  = document.getElementById('photo-zoom-img');
-  if (zoom && img && ex.src) {
-    const data = (window.PHOTO_DATA && window.PHOTO_DATA[ex.src]) || ex.src;
-    img.src = data;
-    zoom.classList.add('show');
-  }
 }
 function closePlaque() {
   plaqueReader.classList.remove('show');
-  document.getElementById('photo-zoom')?.classList.remove('show');
   if (!isTouch) setTimeout(() => controls.lock(), 300);
 }
 document.getElementById('close-plaque').addEventListener('click', closePlaque);
 plaqueReader.addEventListener('click', (e) => { if (e.target === plaqueReader) closePlaque(); });
-document.getElementById('photo-zoom').addEventListener('click', closePlaque);
 
 const letterOverlay = document.getElementById('letter-overlay');
 function openLetter() {
