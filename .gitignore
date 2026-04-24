@@ -1,0 +1,22 @@
+
+# Don't track the embedded shipped HTML — it's regenerated from index-source.html
+# Fetched raw photos (optional: you may want these tracked)
+# Playwright browsers (too large)
+# Uncomment next line if you want to keep index.html out of the repo:
+# index.html
+# photos/raw/
+*.pyc
+.DS_Store
+.playwright/
+.venv/
+Thumbs.db
+__pycache__/
+fetch-debug-*.png
+fetched-photo-urls.txt
+node_modules/
+package-lock.json
+package.json
+photos/raw/
+playwright-report/
+process-errors.log
+venv/

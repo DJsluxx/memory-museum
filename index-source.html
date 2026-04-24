@@ -1,0 +1,3421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>A Museum of Us</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream: #f4ead5;
+    --warm-black: #1a1612;
+    --brass: #c4a05a;
+    --brass-light: #e6c97c;
+    --ink: #2a2420;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; width: 100%; overflow: hidden; background: #0a0806; color: var(--cream); font-family: "DM Sans", sans-serif; }
+  canvas { display: block; touch-action: none; }
+
+  /* ---------- LOADING ---------- */
+  #loading {
+    position: fixed; inset: 0; background: #0a0806; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 1.2s ease;
+  }
+  #loading .mono {
+    font-family: "Cormorant Garamond", serif; font-weight: 300;
+    font-size: clamp(2.5rem, 7vw, 5rem); letter-spacing: 0.04em;
+    color: var(--cream); margin-bottom: 1.5rem; font-style: italic;
+    opacity: 0; animation: fadeIn 1.6s ease 0.3s forwards;
+  }
+  #loading .sub {
+    font-family: "Fraunces", serif; font-size: 0.95rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--brass); opacity: 0;
+    animation: fadeIn 1.6s ease 1.2s forwards;
+  }
+  #loading .bar {
+    margin-top: 3rem; width: 200px; height: 1px; background: rgba(196,160,90,0.2); overflow: hidden; opacity: 0;
+    animation: fadeIn 1s ease 1.8s forwards;
+  }
+  #loading .bar::after {
+    content: ""; display: block; height: 100%; background: var(--brass);
+    animation: load 2.2s ease 2s forwards; transform: translateX(-100%);
+  }
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes load { to { transform: translateX(0); } }
+
+  /* ---------- INTRO OVERLAY ---------- */
+  #intro {
+    position: fixed; inset: 0; background: radial-gradient(ellipse at center, rgba(15,10,6,0.95) 0%, rgba(6,4,3,0.98) 100%); z-index: 90;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 2rem; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity 0.8s ease;
+  }
+  #intro.show { opacity: 1; pointer-events: auto; }
+  #intro .dedication {
+    font-family: "Fraunces", serif; font-weight: 300; font-style: italic;
+    font-size: clamp(1rem, 2.2vw, 1.4rem); color: var(--brass-light);
+    letter-spacing: 0.12em; margin-bottom: 1.5rem;
+  }
+  #intro .ornament-top, #intro .ornament-bottom {
+    display: flex; align-items: center; justify-content: center; gap: 1rem;
+    color: var(--brass); font-size: 0.8rem; letter-spacing: 0.5em;
+    margin-bottom: 1.5rem;
+  }
+  #intro .ornament-top::before, #intro .ornament-top::after,
+  #intro .ornament-bottom::before, #intro .ornament-bottom::after {
+    content: ""; width: 80px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--brass), transparent);
+  }
+  #intro .ornament-bottom { margin-top: 1rem; margin-bottom: 0; }
+  #intro h1 {
+    font-family: "Cormorant Garamond", serif; font-weight: 400;
+    font-size: clamp(3rem, 9vw, 6rem); line-height: 1; letter-spacing: -0.01em;
+    color: var(--cream); margin-bottom: 2rem;
+  }
+  #intro h1 em { font-style: italic; color: var(--brass-light); }
+  #intro .divider { width: 60px; height: 1px; background: var(--brass); margin: 0 auto 2rem; }
+  #intro p {
+    font-family: "Fraunces", serif; font-weight: 300; max-width: 44ch;
+    font-size: clamp(0.95rem, 1.8vw, 1.15rem); line-height: 1.75;
+    color: rgba(244,234,213,0.82); margin-bottom: 1rem;
+  }
+  #intro .cta {
+    margin-top: 2.5rem; padding: 1.1rem 2.8rem;
+    border: 1px solid var(--brass);
+    background: linear-gradient(135deg, rgba(196,160,90,0.06), rgba(196,160,90,0.02));
+    font-family: "DM Sans", sans-serif; font-size: 0.8rem; letter-spacing: 0.4em;
+    text-transform: uppercase; color: var(--brass-light);
+    cursor: pointer; transition: all 0.5s cubic-bezier(0.3, 0.8, 0.3, 1);
+    position: relative; overflow: hidden;
+  }
+  #intro .cta::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--brass), #8b6e38);
+    opacity: 0; transition: opacity 0.5s ease;
+    z-index: -1;
+  }
+  #intro .cta:hover { color: var(--warm-black); border-color: var(--brass-light); letter-spacing: 0.5em; }
+  #intro .cta:hover::before { opacity: 1; }
+  #intro .controls-hint {
+    margin-top: 3rem; font-size: 0.72rem; letter-spacing: 0.25em;
+    text-transform: uppercase; color: rgba(244,234,213,0.45);
+  }
+  #intro .controls-hint kbd {
+    display: inline-block; padding: 3px 9px; margin: 0 2px;
+    border: 1px solid rgba(196,160,90,0.4); border-radius: 2px;
+    font-family: "DM Sans", sans-serif; font-size: 0.7rem; color: var(--brass-light);
+    background: rgba(196,160,90,0.05);
+  }
+
+  /* ---------- HUD (elegant catalog badge with Roman numeral) ---------- */
+  #hud {
+    position: fixed; top: 1.75rem; left: 1.75rem; z-index: 50;
+    display: flex; align-items: center; gap: 0.85rem;
+    font-family: "Cormorant Garamond", serif;
+    color: rgba(244,234,213,0.8);
+    opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+    background: linear-gradient(135deg, rgba(15,12,9,0.72), rgba(10,8,6,0.85));
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid rgba(196,160,90,0.35);
+    padding: 0.6rem 1.15rem 0.7rem 1rem;
+    border-radius: 2px;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,240,210,0.08);
+  }
+  #hud.show { opacity: 1; }
+  #hud .hud-numeral {
+    font-family: "Cormorant Garamond", serif; font-weight: 400; font-style: normal;
+    font-size: 1.35rem; line-height: 1; color: var(--brass-light);
+    padding-right: 0.85rem; padding-top: 0.1rem;
+    border-right: 1px solid rgba(196,160,90,0.35);
+    letter-spacing: 0.05em;
+  }
+  #hud .hud-right { display: flex; flex-direction: column; gap: 0.15rem; }
+  #hud .hud-eyebrow {
+    font-family: "DM Sans", sans-serif; font-size: 0.55rem; letter-spacing: 0.35em;
+    text-transform: uppercase; color: rgba(196,160,90,0.75); line-height: 1;
+  }
+  #hud .room-name {
+    font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 400;
+    font-size: 1.15rem; line-height: 1; color: var(--cream);
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- CROSSHAIR + INTERACT PROMPT ---------- */
+  #crosshair {
+    position: fixed; top: 50%; left: 50%; width: 8px; height: 8px;
+    margin: -4px 0 0 -4px; border: 1px solid rgba(244,234,213,0.4);
+    border-radius: 50%; z-index: 40; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s ease, transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, width 0.25s ease, height 0.25s ease, margin 0.25s ease;
+  }
+  #crosshair.show { opacity: 1; }
+  #crosshair.active {
+    opacity: 1; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    background: rgba(196,160,90,0.2); border-color: var(--brass-light);
+    box-shadow: 0 0 14px rgba(196,160,90,0.4), inset 0 0 8px rgba(196,160,90,0.25);
+  }
+
+  #interact-prompt {
+    position: fixed; top: 60%; left: 50%; transform: translateX(-50%);
+    z-index: 41; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
+    font-family: "DM Sans", sans-serif; font-size: 0.72rem; letter-spacing: 0.35em;
+    text-transform: uppercase; color: var(--brass-light);
+    background: linear-gradient(135deg, rgba(15,12,9,0.75), rgba(10,8,6,0.85));
+    backdrop-filter: blur(10px); padding: 0.65rem 1.2rem;
+    border: 1px solid rgba(196,160,90,0.4); border-radius: 100px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  }
+  #interact-prompt.show { opacity: 1; }
+  #interact-prompt kbd {
+    padding: 2px 8px; border: 1px solid var(--brass-light); border-radius: 2px;
+    margin-right: 8px; background: rgba(196,160,90,0.1);
+    font-family: "DM Sans", sans-serif; font-size: 0.7rem;
+  }
+
+  /* ---------- PLAQUE READER (museum catalog card) ---------- */
+  #plaque-reader {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center; padding: 2rem;
+    background: rgba(10,8,6,0); backdrop-filter: blur(0px);
+    pointer-events: none; transition: background 0.5s ease, backdrop-filter 0.5s ease;
+  }
+  #plaque-reader.show { background: rgba(10,8,6,0.85); backdrop-filter: blur(10px); pointer-events: auto; }
+  #plaque-reader .card {
+    max-width: 620px; width: 100%;
+    background: linear-gradient(180deg, #f8f0da 0%, #f0e3c5 100%);
+    color: var(--ink); padding: 3.2rem 3.5rem 2.8rem; border-radius: 2px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px var(--brass) inset, 0 0 0 8px rgba(196,160,90,0.15);
+    transform: translateY(24px) scale(0.98); opacity: 0;
+    transition: all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+  }
+  #plaque-reader.show .card { transform: translateY(0) scale(1); opacity: 1; }
+  /* Ornamental top/bottom flourish */
+  #plaque-reader .card::before {
+    content: "◆"; position: absolute; top: 1.1rem; left: 50%; transform: translateX(-50%);
+    color: var(--brass); font-size: 0.8rem;
+  }
+  #plaque-reader .card::after {
+    content: ""; position: absolute; bottom: 1.6rem; left: 50%; transform: translateX(-50%);
+    width: 56px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--brass), transparent);
+  }
+  #plaque-reader .catalog {
+    font-family: "Cormorant Garamond", serif; font-weight: 400;
+    font-size: 0.8rem; letter-spacing: 0.4em; text-transform: uppercase;
+    color: rgba(139,110,56,0.8); text-align: center;
+    margin-bottom: 1.3rem;
+  }
+  #plaque-reader h2 {
+    font-family: "Cormorant Garamond", serif; font-weight: 500;
+    font-size: clamp(1.9rem, 4.2vw, 2.8rem); line-height: 1.1; margin-bottom: 0.4rem;
+    color: var(--warm-black); text-align: center;
+  }
+  #plaque-reader .date {
+    font-family: "Fraunces", serif; font-style: italic; font-weight: 300;
+    color: #7a6a4a; text-align: center; margin-bottom: 2rem; font-size: 1rem;
+  }
+  #plaque-reader .plaque-divider {
+    width: 40px; height: 1px; background: rgba(139,110,56,0.4);
+    margin: 0 auto 2rem;
+  }
+  #plaque-reader .body {
+    font-family: "Fraunces", serif; font-weight: 300; font-size: 1.08rem; line-height: 1.8;
+    color: var(--ink); white-space: pre-wrap;
+  }
+  #plaque-reader .close {
+    position: absolute; top: 0.8rem; right: 0.8rem; width: 36px; height: 36px;
+    border: none; background: transparent; color: rgba(139,110,56,0.6); cursor: pointer;
+    font-size: 1.3rem; transition: color 0.3s, transform 0.3s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #plaque-reader .close:hover { color: var(--warm-black); transform: rotate(90deg); }
+  #plaque-reader .hint {
+    margin-top: 1.8rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.35em;
+    text-transform: uppercase; color: rgba(139,110,56,0.55);
+  }
+
+  /* ---------- LETTER OVERLAY ---------- */
+  #letter-overlay {
+    position: fixed; inset: 0; z-index: 70; pointer-events: none;
+    background: rgba(10,8,30,0); transition: background 1s ease;
+    display: flex; align-items: center; justify-content: center; padding: 2rem;
+  }
+  #letter-overlay.show { background: rgba(10,8,30,0.92); pointer-events: auto; }
+  #letter-overlay .letter {
+    max-width: 580px; font-family: "Cormorant Garamond", serif;
+    color: var(--cream); opacity: 0; transform: translateY(30px);
+    transition: all 1.6s ease;
+  }
+  #letter-overlay.show .letter { opacity: 1; transform: translateY(0); }
+  #letter-overlay .letter .greeting {
+    font-size: clamp(2rem, 5vw, 3rem); font-style: italic; font-weight: 300;
+    margin-bottom: 2rem; color: var(--brass-light);
+  }
+  #letter-overlay .letter .body {
+    font-family: "Fraunces", serif; font-weight: 300;
+    font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.9;
+    white-space: pre-wrap; color: rgba(244,234,213,0.95);
+  }
+  #letter-overlay .letter .signature {
+    margin-top: 3rem; font-family: "Cormorant Garamond", serif;
+    font-style: italic; font-size: 1.6rem; color: var(--brass-light);
+    text-align: right;
+  }
+  #letter-overlay .close-letter {
+    position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    font-family: "DM Sans", sans-serif; font-size: 0.7rem; letter-spacing: 0.35em;
+    text-transform: uppercase; color: rgba(244,234,213,0.55);
+    background: none; border: 1px solid rgba(244,234,213,0.3);
+    padding: 0.9rem 2rem; border-radius: 100px;
+    cursor: pointer; transition: color 0.3s, border-color 0.3s, opacity 0.8s ease;
+    opacity: 0; pointer-events: none;
+  }
+  #letter-overlay.show .close-letter {
+    opacity: 1; pointer-events: auto;
+    transition: color 0.3s, border-color 0.3s, opacity 0.8s ease 2s;
+  }
+  #letter-overlay .close-letter:hover { color: var(--cream); border-color: var(--cream); }
+
+  /* ---------- CHAPTER TITLE (plays when crossing into a country room) ---------- */
+  #chapter-overlay {
+    position: fixed; inset: 0; z-index: 55;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10, 8, 6, 0);
+    pointer-events: none;
+    transition: background 0.6s ease;
+  }
+  #chapter-overlay.show { background: rgba(10, 8, 6, 0.58); backdrop-filter: blur(6px); }
+  #chapter-overlay .chapter-inner {
+    text-align: center; opacity: 0; transform: translateY(20px);
+    transition: opacity 0.9s ease, transform 1.4s ease;
+    position: relative; padding: 2rem 0;
+  }
+  #chapter-overlay.show .chapter-inner { opacity: 1; transform: translateY(0); }
+  #chapter-overlay .chapter-ornament-top, #chapter-overlay .chapter-ornament-bottom {
+    display: flex; align-items: center; justify-content: center; gap: 0.8rem;
+    margin-bottom: 1.5rem;
+    color: var(--brass); font-size: 1rem;
+  }
+  #chapter-overlay .chapter-ornament-bottom { margin-top: 1.5rem; margin-bottom: 0; }
+  #chapter-overlay .chapter-ornament-top::before,
+  #chapter-overlay .chapter-ornament-top::after,
+  #chapter-overlay .chapter-ornament-bottom::before,
+  #chapter-overlay .chapter-ornament-bottom::after {
+    content: ""; width: 70px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--brass), transparent);
+  }
+  #chapter-overlay .chapter-native {
+    font-family: "Cormorant Garamond", "Noto Sans SC", "Noto Sans JP", serif;
+    font-weight: 300; font-size: clamp(4rem, 14vw, 10rem); line-height: 1;
+    color: var(--cream); margin-bottom: 0.3rem; letter-spacing: 0.02em;
+    text-shadow: 0 4px 50px rgba(0,0,0,0.8);
+  }
+  #chapter-overlay .chapter-divider {
+    width: 140px; height: 1px; margin: 1.3rem auto;
+    background: linear-gradient(90deg, transparent, var(--brass), transparent);
+  }
+  #chapter-overlay .chapter-name {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500; font-size: clamp(1.5rem, 4vw, 2.4rem);
+    letter-spacing: 0.5em; text-transform: uppercase;
+    color: var(--brass-light); padding-left: 0.5em;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    #chapter-overlay .chapter-native { font-size: clamp(3.5rem, 18vw, 7rem); }
+    #chapter-overlay .chapter-name { font-size: clamp(1rem, 4.5vw, 1.8rem); letter-spacing: 0.3em; padding-left: 0.3em; }
+    #chapter-overlay .chapter-ornament-top::before,
+    #chapter-overlay .chapter-ornament-top::after,
+    #chapter-overlay .chapter-ornament-bottom::before,
+    #chapter-overlay .chapter-ornament-bottom::after { width: 40px; }
+  }
+
+  /* ---------- MUSIC TOGGLE ---------- */
+  #music-toggle {
+    position: fixed; top: 1.75rem; right: 1.75rem; z-index: 50;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid rgba(196,160,90,0.4);
+    background: linear-gradient(135deg, rgba(15,12,9,0.72), rgba(10,8,6,0.85));
+    backdrop-filter: blur(14px) saturate(1.3);
+    color: var(--brass-light); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0;
+    transition: all 0.4s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  #music-toggle.show { opacity: 1; }
+  #music-toggle:hover { background: linear-gradient(135deg, rgba(196,160,90,0.3), rgba(196,160,90,0.15)); border-color: var(--brass-light); }
+  #music-toggle.playing {
+    border-color: var(--brass-light);
+    animation: musicPulse 3s ease-in-out infinite;
+  }
+  @keyframes musicPulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 0 rgba(196,160,90,0.4); }
+    50%      { box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 18px 3px rgba(196,160,90,0.45); }
+  }
+  #music-toggle svg { width: 18px; height: 18px; }
+
+  /* ---------- MOBILE CONTROLS ---------- */
+  #mobile-controls { display: none; }
+  /* ---------- LOADING PROGRESS (replaces old static bar) ---------- */
+  #loading .cartouche {
+    margin-top: 2.4rem; width: 260px;
+    display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    opacity: 0; animation: fadeIn 1s ease 1.8s forwards;
+  }
+  #loading .cartouche-frame {
+    position: relative; width: 100%; height: 1px;
+    background: rgba(196,160,90,0.18); overflow: visible;
+  }
+  #loading .cartouche-fill {
+    position: absolute; inset: 0; width: 0%; background: var(--brass);
+    box-shadow: 0 0 10px rgba(196,160,90,0.5);
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  #loading .cartouche-count {
+    font-family: "Fraunces", serif; font-weight: 300; font-style: italic;
+    font-size: 0.85rem; color: rgba(196,160,90,0.75); letter-spacing: 0.15em;
+  }
+  #loading .cartouche-names {
+    font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 300;
+    color: rgba(244,234,213,0.55); font-size: 0.95rem; letter-spacing: 0.3em;
+  }
+
+  /* ---------- MINIMAP (discreet top-right room indicator) ---------- */
+  #minimap {
+    position: fixed; top: 1.75rem; right: 5.5rem; z-index: 49;
+    display: flex; gap: 6px; padding: 0.55rem 0.85rem;
+    background: linear-gradient(135deg, rgba(15,12,9,0.72), rgba(10,8,6,0.85));
+    backdrop-filter: blur(14px) saturate(1.3);
+    border: 1px solid rgba(196,160,90,0.28); border-radius: 100px;
+    opacity: 0; transition: opacity 0.6s ease; pointer-events: none;
+  }
+  #minimap.show { opacity: 1; }
+  #minimap.fade { opacity: 0.22; }
+  #minimap .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(196,160,90,0.25);
+    transition: background 0.4s, transform 0.3s, box-shadow 0.4s;
+  }
+  #minimap .dot.visited { background: rgba(196,160,90,0.65); }
+  #minimap .dot.current {
+    background: var(--brass-light); transform: scale(1.4);
+    box-shadow: 0 0 10px rgba(230,201,124,0.6);
+  }
+  @media (hover: none) and (pointer: coarse) {
+    #minimap { top: 1rem; right: 4rem; padding: 0.4rem 0.65rem; }
+    #minimap .dot { width: 7px; height: 7px; }
+  }
+
+  /* ---------- CONTROL STRIP (pause + language, grouped top-right) ---------- */
+  #control-strip {
+    position: fixed; top: 1.75rem; right: 1.75rem; z-index: 50;
+    display: flex; gap: 0.55rem; opacity: 0; transition: opacity 0.6s ease;
+  }
+  #control-strip.show { opacity: 1; }
+  #control-strip button {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid rgba(196,160,90,0.4);
+    background: linear-gradient(135deg, rgba(15,12,9,0.72), rgba(10,8,6,0.85));
+    backdrop-filter: blur(14px) saturate(1.3);
+    color: var(--brass-light); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    font-family: "DM Sans", sans-serif; font-size: 0.7rem; letter-spacing: 0.15em;
+    padding: 0;
+  }
+  #control-strip button:hover {
+    background: linear-gradient(135deg, rgba(196,160,90,0.3), rgba(196,160,90,0.15));
+    border-color: var(--brass-light);
+  }
+  #control-strip svg { width: 16px; height: 16px; }
+  @media (hover: none) and (pointer: coarse) {
+    #control-strip { top: 1rem; right: 1rem; gap: 0.4rem; }
+    #control-strip button { width: 40px; height: 40px; }
+  }
+
+  /* ---------- PAUSE OVERLAY ---------- */
+  #pause-overlay {
+    position: fixed; inset: 0; z-index: 65; pointer-events: none;
+    background: rgba(10,8,6,0); backdrop-filter: blur(0px);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.6s ease, backdrop-filter 0.6s ease;
+  }
+  #pause-overlay.show {
+    background: rgba(10,8,6,0.72); backdrop-filter: blur(14px);
+    pointer-events: auto;
+  }
+  #pause-overlay .pause-card {
+    text-align: center; padding: 2.5rem 3rem;
+    opacity: 0; transform: translateY(16px); transition: all 0.7s ease;
+  }
+  #pause-overlay.show .pause-card { opacity: 1; transform: translateY(0); }
+  #pause-overlay .pause-title {
+    font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+    font-size: clamp(2rem, 5vw, 3rem); color: var(--cream); margin-bottom: 0.6rem;
+  }
+  #pause-overlay .pause-sub {
+    font-family: "Fraunces", serif; font-weight: 300;
+    color: rgba(244,234,213,0.65); font-size: 1rem; margin-bottom: 2.5rem;
+  }
+  #pause-overlay .pause-resume {
+    font-family: "DM Sans", sans-serif; font-size: 0.75rem; letter-spacing: 0.4em;
+    text-transform: uppercase; color: var(--brass-light);
+    background: transparent; border: 1px solid var(--brass);
+    padding: 0.9rem 2.2rem; cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #pause-overlay .pause-resume:hover {
+    background: rgba(196,160,90,0.15); letter-spacing: 0.5em;
+  }
+
+  /* ---------- GUESTBOOK (triggered from inside the letter room) ---------- */
+  #guestbook {
+    position: fixed; inset: 0; z-index: 72; pointer-events: none;
+    background: rgba(6,4,3,0); backdrop-filter: blur(0px);
+    display: flex; align-items: center; justify-content: center; padding: 2rem;
+    transition: background 0.6s ease, backdrop-filter 0.6s ease;
+  }
+  #guestbook.show {
+    background: rgba(6,4,3,0.94); backdrop-filter: blur(18px);
+    pointer-events: auto;
+  }
+  #guestbook .gb-card {
+    max-width: 560px; width: 100%; text-align: center;
+    opacity: 0; transform: translateY(18px); transition: all 0.7s ease;
+  }
+  #guestbook.show .gb-card { opacity: 1; transform: translateY(0); }
+  #guestbook .gb-title {
+    font-family: "Cormorant Garamond", serif; font-weight: 300; font-style: italic;
+    font-size: clamp(2rem, 5vw, 3rem); color: var(--cream); margin-bottom: 0.4rem;
+  }
+  #guestbook .gb-sub {
+    font-family: "Fraunces", serif; font-weight: 300;
+    color: rgba(244,234,213,0.6); font-size: 0.95rem; margin-bottom: 2rem; line-height: 1.6;
+  }
+  #guestbook textarea {
+    width: 100%; min-height: 120px; resize: vertical;
+    background: rgba(244,234,213,0.06);
+    border: 1px solid rgba(196,160,90,0.35); border-radius: 2px;
+    padding: 1rem 1.2rem; color: var(--cream);
+    font-family: "Fraunces", serif; font-size: 1.05rem; font-weight: 300; line-height: 1.6;
+    outline: none; transition: border-color 0.3s ease;
+  }
+  #guestbook textarea:focus { border-color: var(--brass-light); }
+  #guestbook .gb-actions {
+    margin-top: 1.4rem; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;
+  }
+  #guestbook .gb-actions button {
+    font-family: "DM Sans", sans-serif; font-size: 0.72rem; letter-spacing: 0.35em;
+    text-transform: uppercase;
+    background: transparent; color: var(--brass-light);
+    border: 1px solid rgba(196,160,90,0.55);
+    padding: 0.85rem 1.8rem; cursor: pointer; transition: all 0.3s ease;
+  }
+  #guestbook .gb-actions button:hover {
+    background: rgba(196,160,90,0.15); border-color: var(--brass-light);
+  }
+  #guestbook .gb-hint {
+    margin-top: 1.2rem; font-size: 0.65rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: rgba(196,160,90,0.5);
+  }
+
+  /* ---------- PHOTO ZOOM (interact on an exhibit lifts it) ---------- */
+  #photo-zoom {
+    position: fixed; inset: 0; z-index: 62; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; padding: 2rem;
+    background: rgba(6,4,3,0); transition: background 0.5s ease;
+  }
+  #photo-zoom.show { background: rgba(6,4,3,0.88); pointer-events: auto; }
+  #photo-zoom img {
+    max-width: 88vw; max-height: 78vh; object-fit: contain;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.7), 0 0 0 8px rgba(196,160,90,0.14), 0 0 0 1px var(--brass) inset;
+    opacity: 0; transform: scale(0.96);
+    transition: all 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  #photo-zoom.show img { opacity: 1; transform: scale(1); }
+  #photo-zoom .zoom-hint {
+    position: absolute; bottom: 2.2rem; left: 50%; transform: translateX(-50%);
+    font-family: "DM Sans", sans-serif; font-size: 0.65rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: rgba(244,234,213,0.55);
+  }
+
+  /* ---------- SAFE AREA (notches & rounded phones) ---------- */
+  @supports (padding: env(safe-area-inset-top)) {
+    #hud { top: calc(1.75rem + env(safe-area-inset-top)); left: calc(1.75rem + env(safe-area-inset-left)); }
+    #control-strip { top: calc(1.75rem + env(safe-area-inset-top)); right: calc(1.75rem + env(safe-area-inset-right)); }
+    #minimap { top: calc(1.75rem + env(safe-area-inset-top)); right: calc(5.5rem + env(safe-area-inset-right)); }
+  }
+
+  /* ---------- REDUCED MOTION ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001s !important; transition-duration: 0.15s !important; }
+    #chapter-overlay { transition: none !important; }
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    #mobile-controls { display: block; }
+    #intro .controls-hint .desktop { display: none; }
+    #joystick {
+      position: fixed; bottom: 2.2rem; left: 1.8rem; width: 130px; height: 130px;
+      border-radius: 50%;
+      border: 1px solid rgba(196,160,90,0.45);
+      background: radial-gradient(circle at center, rgba(196,160,90,0.08) 0%, rgba(10,8,6,0.55) 70%);
+      backdrop-filter: blur(12px) saturate(1.3);
+      z-index: 45; opacity: 0; transition: opacity 0.4s;
+      touch-action: none;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.4), inset 0 0 16px rgba(196,160,90,0.05);
+    }
+    #joystick.show { opacity: 1; }
+    #joystick::before {
+      content: ""; position: absolute; inset: 15%;
+      border: 1px dashed rgba(196,160,90,0.2);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    #joystick .knob {
+      position: absolute; top: 50%; left: 50%; width: 64px; height: 64px;
+      margin: -32px 0 0 -32px;
+      transition: transform 0.1s ease-out;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.55));
+      pointer-events: none;
+    }
+    #joystick .avocado {
+      width: 100%; height: 100%;
+      display: block;
+      animation: avocadoBob 2.6s ease-in-out infinite;
+      transform-origin: 50% 55%;
+    }
+    @keyframes avocadoBob {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50%      { transform: translateY(-3px) rotate(3deg); }
+    }
+    #mobile-interact {
+      position: fixed; bottom: 2.2rem; right: 1.8rem;
+      padding: 1rem 1.6rem 1rem 1.4rem;
+      border: 1px solid var(--brass);
+      background: linear-gradient(135deg, rgba(196,160,90,0.18), rgba(196,160,90,0.06));
+      backdrop-filter: blur(14px) saturate(1.3);
+      color: var(--brass-light);
+      font-family: "DM Sans", sans-serif; font-size: 0.72rem; letter-spacing: 0.3em;
+      text-transform: uppercase; z-index: 45; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.15s ease;
+      border-radius: 100px;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,240,200,0.15);
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    #mobile-interact::before {
+      content: "◆"; color: var(--brass); font-size: 0.55rem;
+    }
+    #mobile-interact.show { opacity: 1; pointer-events: auto; }
+    #mobile-interact:active { transform: scale(0.96); }
+    #hud { top: 1rem; left: 1rem; padding: 0.5rem 0.9rem 0.55rem 0.8rem; gap: 0.7rem; }
+    #hud .hud-numeral { font-size: 1.1rem; padding-right: 0.7rem; }
+    #hud .hud-eyebrow { font-size: 0.5rem; }
+    #hud .room-name { font-size: 1rem; }
+    #music-toggle { top: 1rem; right: 1rem; width: 40px; height: 40px; }
+    #crosshair { display: none; }
+    #interact-prompt { display: none; }
+    #plaque-reader .card { padding: 2.5rem 1.75rem 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="mono">A Museum of Us</div>
+  <div class="sub">Preparing the gallery</div>
+  <div class="cartouche">
+    <div class="cartouche-names">Daniel · Alena</div>
+    <div class="cartouche-frame"><div class="cartouche-fill" id="load-fill"></div></div>
+    <div class="cartouche-count" id="load-count">0%</div>
+  </div>
+</div>
+
+<div id="intro">
+  <div class="dedication" id="dedication-text">For my love</div>
+  <div class="ornament-top">✦</div>
+  <h1>A Museum <em>of Us</em></h1>
+  <div class="divider"></div>
+  <p>Every exhibit is something I wanted to keep. Walk slowly. Read the plaques. The last room has a letter for you.</p>
+  <button class="cta" id="enter-btn">Enter the Gallery</button>
+  <div class="controls-hint">
+    <span class="desktop">Move <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · Look with mouse · Press <kbd>E</kbd> to read</span>
+    <span class="mobile" style="display:none">Drag left side to move · Drag right side to look · Tap artworks to read</span>
+  </div>
+</div>
+
+<canvas id="museum"></canvas>
+
+<div id="hud">
+  <div class="hud-numeral" id="room-numeral">I</div>
+  <div class="hud-right">
+    <div class="hud-eyebrow" id="room-eyebrow">Room</div>
+    <div class="room-name" id="room-name">Foyer</div>
+  </div>
+</div>
+
+<div id="crosshair"></div>
+<div id="interact-prompt"><kbd>E</kbd><span id="prompt-label">Read plaque</span></div>
+
+<div id="minimap"></div>
+
+<div id="control-strip">
+  <button id="pause-btn" title="Pause" aria-label="Pause">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+      <rect x="7" y="5" width="3.5" height="14" rx="0.5"/>
+      <rect x="13.5" y="5" width="3.5" height="14" rx="0.5"/>
+    </svg>
+  </button>
+  <button id="lang-btn" title="Language" aria-label="Toggle language">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>
+    </svg>
+  </button>
+  <button id="music-toggle" title="Toggle music" aria-label="Toggle music">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+    </svg>
+  </button>
+</div>
+
+<div id="plaque-reader">
+  <div class="card">
+    <button class="close" id="close-plaque" aria-label="Close">×</button>
+    <div class="catalog" id="p-catalog">I · VIII</div>
+    <h2 id="p-title"></h2>
+    <div class="date" id="p-date"></div>
+    <div class="plaque-divider"></div>
+    <div class="body" id="p-body"></div>
+    <div class="hint">Press ESC or click outside to return</div>
+  </div>
+</div>
+
+<div id="letter-overlay">
+  <div class="letter">
+    <div class="greeting" id="l-greeting">My love,</div>
+    <div class="body" id="l-body"></div>
+    <div class="signature" id="l-signature">— Daniel</div>
+  </div>
+  <button class="close-letter" id="close-letter">Return to the Museum</button>
+</div>
+
+<div id="mobile-controls">
+  <div id="joystick">
+    <div class="knob">
+      <svg class="avocado" viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <radialGradient id="avoFlesh" cx="50%" cy="42%" r="60%">
+            <stop offset="0%" stop-color="#d8e48f"/>
+            <stop offset="55%" stop-color="#a8c05a"/>
+            <stop offset="100%" stop-color="#6f8a2c"/>
+          </radialGradient>
+          <radialGradient id="avoPit" cx="40%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="#9a6f42"/>
+            <stop offset="60%" stop-color="#6b4226"/>
+            <stop offset="100%" stop-color="#3f2614"/>
+          </radialGradient>
+        </defs>
+        <!-- outer skin -->
+        <path d="M32 6 C 20 6 10 22 10 46 C 10 64 20 74 32 74 C 44 74 54 64 54 46 C 54 22 44 6 32 6 Z"
+              fill="#3a5215" stroke="#1f2f0a" stroke-width="1.2"/>
+        <!-- inner flesh -->
+        <path d="M32 10 C 22 10 14 24 14 46 C 14 62 22 70 32 70 C 42 70 50 62 50 46 C 50 24 42 10 32 10 Z"
+              fill="url(#avoFlesh)"/>
+        <!-- pit -->
+        <circle cx="32" cy="50" r="10" fill="url(#avoPit)"/>
+        <!-- pit highlight -->
+        <ellipse cx="28.5" cy="46.5" rx="2.2" ry="3" fill="#caa079" opacity="0.85"/>
+        <!-- tiny leaf on top -->
+        <path d="M32 6 C 34 3 38 2 40 4 C 38 6 35 7 32 7 Z" fill="#4a6b1e" stroke="#2a3d0f" stroke-width="0.8"/>
+      </svg>
+    </div>
+  </div>
+  <button id="mobile-interact">Read Plaque</button>
+</div>
+
+<!-- Pause overlay -->
+<div id="pause-overlay">
+  <div class="pause-card">
+    <div class="pause-title">Paused</div>
+    <div class="pause-sub">Return whenever you like.</div>
+    <button class="pause-resume" id="pause-resume">Resume</button>
+  </div>
+</div>
+
+<!-- Photo zoom (tap an artwork to enlarge it briefly) -->
+<div id="photo-zoom">
+  <img id="photo-zoom-img" alt="" />
+  <div class="zoom-hint">Tap anywhere to return</div>
+</div>
+
+<!-- Guestbook (opens at the end of the letter room) -->
+<div id="guestbook">
+  <div class="gb-card">
+    <div class="gb-title">Leave a message</div>
+    <div class="gb-sub">For me, for you, for later. Saved in this browser only — no server, no telemetry.</div>
+    <textarea id="gb-input" placeholder="What do you want to remember?"></textarea>
+    <div class="gb-actions">
+      <button id="gb-copy">Copy to clipboard</button>
+      <button id="gb-close">Close</button>
+    </div>
+    <div class="gb-hint" id="gb-status"></div>
+  </div>
+</div>
+
+<!-- Chapter title overlay (appears briefly when entering a country room) -->
+<div id="chapter-overlay">
+  <div class="chapter-inner">
+    <div class="chapter-ornament-top">✦</div>
+    <div class="chapter-native"></div>
+    <div class="chapter-divider"></div>
+    <div class="chapter-name"></div>
+    <div class="chapter-ornament-bottom">✦</div>
+  </div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- CONFIGURATION: EDIT THIS SECTION TO PERSONALIZE THE MUSEUM                -->
+<!-- ======================================================================== -->
+<script>
+window.MUSEUM_CONFIG = {
+  visitorName: "Alena",
+  dedication: "For my love",
+  signature: "— Daniel",
+  letter: `If you've made it this far, you've walked through rooms I built for you. Each picture hung on the wall like something rare — because to me, that's what each one is.
+
+I used to think museums were for things already finished. Maybe they're really places where a feeling is given permission to stay still long enough to be seen properly.
+
+This one isn't finished. The last wall is blank on purpose. Everything we haven't done yet goes there.
+
+I love you.`,
+  // Optional: URL to an MP3 for ambient music (royalty-free piano works beautifully)
+  // Leave null for silence.
+  musicUrl: null,
+
+  // Each exhibit is a photo on the wall with a curator's plaque.
+  // The "room" property assigns it to a gallery room.
+  // Rooms: "beginnings", "journeys", "home", (room "foyer" and "letter" hold no photos)
+  // If you have fewer/more photos than slots, they auto-arrange.
+  exhibits: [
+    // ====== JAPAN ======
+    { room: "japan", src: "photos/01.jpg", title: "Dotonbori",              date: "Osaka · first night",
+      plaque: "The canal was behind us. The yellow Ebisu Tower was still turning. I leaned in. You had already leaned in." },
+    { room: "japan", src: "photos/02.jpg", title: "The Red Tree",            date: "December · evening",
+      plaque: "Glass ornaments end to end, each one a small lantern. We stopped because everyone was stopping. Then we stopped because we wanted to." },
+    { room: "japan", src: "photos/03.jpg", title: "Your Turn",               date: "the same tree",
+      plaque: "You pulled me closer. The ornaments behind you were out of focus. Your eyes weren't." },
+    { room: "japan", src: "photos/04.jpg", title: "My Turn",                 date: "still the tree",
+      plaque: "Different angle. The tree got taller, you got smaller. Two people in front of something beautiful — which by then, we also were." },
+    { room: "japan", src: "photos/05.jpg", title: "The Last One",            date: "before we walked away",
+      plaque: "You can see it in how we're both trying not to laugh. The tree is still there, probably. We're somewhere else now." },
+    { room: "japan", src: "photos/06.jpg", title: "Avocado House",           date: "the dinner that ran long",
+      plaque: "A Mexican place in Japan with a mural that ended up in every frame. Still standing, still reading the menu in our heads." },
+    { room: "japan", src: "photos/07.jpg", title: "Kissed in Front of an Avocado", date: "same wall, closer",
+      plaque: "You leaned over. The mural kept being a mural. I kept being amused to be kissed in front of it." },
+    { room: "japan", src: "photos/08.jpg", title: "Between Courses",         date: "the food arrived",
+      plaque: "Edge of a plate at the bottom of the frame. Good enough to stop for a photo means the photo wins." },
+    { room: "japan", src: "photos/09.jpg", title: "The Light Hit Right",     date: "still eating",
+      plaque: "You turned your head slightly and the light changed. Twenty photos for this one." },
+    { room: "japan", src: "photos/10.jpg", title: "Camera Handoff",          date: "my turn in the chair",
+      plaque: "I handed you the phone. You held it higher than I would have. The ceiling light photobombed. I love this one anyway." },
+    { room: "japan", src: "photos/11.jpg", title: "Restaurant Selfie",       date: "back to the phone",
+      plaque: "The waiter walked behind us at exactly the right moment, out of focus, doing his job." },
+    { room: "japan", src: "photos/12.jpg", title: "Caught Laughing",         date: "something you said",
+      plaque: "You said something — I don't remember what. My eyes are closed. Your mouth is open. Technically terrible. One of my favorites." },
+    { room: "japan", src: "photos/13.jpg", title: "Red Wall, Green Wall",    date: "check finally arrived",
+      plaque: "The last photo before we put the phone down. Two faces, one evening, gone." },
+    { room: "japan", src: "photos/14.jpg", title: "Four Strangers",          date: "a bar in Tokyo",
+      plaque: "We walked in as a couple. Three men at the bar said something in Japanese; we didn't understand; they said it again with their hands. Second round, we were six friends. The bartender took this. He wouldn't accept a tip." },
+    { room: "japan", src: "photos/15.jpg", title: "Everyone Looked",         date: "second of two",
+      plaque: "Thumbs up, peace sign, tongue out. The Bushmills bottle on the left was half empty. We were half full." },
+    { room: "japan", src: "photos/16.jpg", title: "The Blur",                date: "third attempt",
+      plaque: "Someone called for another photo. We rearranged. The blue shelf-light overexposed. We kept this one for your smile." },
+    { room: "japan", src: "photos/17.jpg", title: "One More, Then We'll Go", date: "the bartender indulged us",
+      plaque: "Our new friend in the middle had a joke no one else caught. He tells it to his own face in the frame." },
+    { room: "japan", src: "photos/18.jpg", title: "The Second Bar",          date: "after the first one closed",
+      plaque: "The first bar had closed. This one hadn't. Good nights relocate. Darker lights, louder music, a corner." },
+    { room: "japan", src: "photos/19.jpg", title: "The Beanie",              date: "a few drinks in",
+      plaque: "Silver hair, a white beanie with Japanese gothic stitching. He leaned in. We never learned his name. We remember the hat." },
+    { room: "japan", src: "photos/20.jpg", title: "Closer",                  date: "the phone came closer",
+      plaque: "The stitching was clearer now, and still unreadable. Half-lit faces. This is what bars look like from the inside." },
+    { room: "japan", src: "photos/21.jpg", title: "Last Call",               date: "almost three in the morning",
+      plaque: "Peace signs and thumbs up, a full bar behind us, a beanie that would stay in Tokyo forever. Outside, Tokyo was quiet in the specific way it gets quiet at three." },
+    { room: "japan", src: "photos/25.jpg", title: "Shinkansen",              date: "somewhere north · 300 km/h",
+      plaque: "You stuck your tongue out. I threw a peace sign. The passenger across the aisle pretended not to see us. Not yet spring, all of it ours for the week." },
+
+    // ====== CHINA ======
+    { room: "china", src: "photos/22.jpg", title: "Shall We Share More Cheese?", date: "an arcade, one afternoon",
+      plaque: "The wall asked the question in English. We took the photo as an answer. Every surface cartooned, every reflection with us in it twice." },
+    { room: "china", src: "photos/23.jpg", title: "Between the Claw Machines", date: "still the arcade",
+      plaque: "A thousand stuffed animals in little glass prisons, all staring up. Fluorescent lights made your hair almost blue." },
+    { room: "china", src: "photos/24.jpg", title: "The Exit Shot",           date: "before we left",
+      plaque: "One more before the door. Tom in one corner, Jerry in another, both watching us leave. The arcade would be here next year. We wouldn't." },
+
+    // ====== KOREA (hotel mirror series; country to be GPS-verified) ======
+    { room: "korea", src: "photos/26.jpg", title: "Before We Went Out",      date: "a hotel, some evening",
+      plaque: "You in the cable-knit sweater and silver skirt; me in the flannel that had seen three countries. The mirror doing its job. Us doing ours." },
+    { room: "korea", src: "photos/27.jpg", title: "Between Us and the Mirror", date: "still not out",
+      plaque: "Between us was the phone. Behind the phone, the mirror. Behind the mirror, a city we hadn't seen yet. Meant to take two seconds. Took longer." },
+    { room: "korea", src: "photos/28.jpg", title: "You Fixed Your Hair",     date: "almost out the door",
+      plaque: "I had the phone up. You were still adjusting — one hand to the forehead. Sometimes the best version of the person you love is the one who doesn't know they're being photographed yet." },
+    { room: "korea", src: "photos/29.jpg", title: "The Teal Wall",           date: "the room they'll clean tomorrow",
+      plaque: "The bed we hadn't made. The bag on the floor. The teal that belonged to no one in particular. We remember where we stayed by what the bathroom looked like." },
+    { room: "korea", src: "photos/30.jpg", title: "The Last Night",          date: "same mirror, packed suitcase",
+      plaque: "Bed made from housekeeping. Suitcase behind us. One more, then one more. The room would be someone else's tomorrow. Tonight, both of us fit inside the mirror." },
+  ]
+};
+</script>
+
+<!-- ======================================================================== -->
+<!-- ENGINE (do not edit below unless you know Three.js)                        -->
+<!-- ======================================================================== -->
+<!-- Importmap is REWRITTEN by build.py to inline three+PointerLockControls as
+     data URIs — no CDN at runtime (hard constraint). The dev-time map below
+     only works via `python3 -m http.server`, it is replaced when shipping. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+const CFG = window.MUSEUM_CONFIG;
+
+// ---------------- Personalize UI with config ----------------
+document.getElementById('dedication-text').textContent = `For ${CFG.visitorName ? CFG.visitorName : 'my love'}`;
+document.getElementById('l-greeting').textContent = CFG.visitorName ? `My ${CFG.visitorName},` : "My love,";
+document.getElementById('l-body').textContent = CFG.letter;
+document.getElementById('l-signature').textContent = CFG.signature;
+
+// ---------------- Scene ----------------
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0806, 0.022);
+
+const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.05, 200);
+camera.rotation.order = 'YXZ'; // FPS convention — prevents roll leak from accidental rotation.x writes
+camera.position.set(0, 1.65, 1);
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById('museum'),
+  antialias: true, powerPreference: 'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.5;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// ---------------- Materials (cached) ----------------
+const MAT = {};
+
+function makeMarbleTexture() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  // Base: warm brown polished marble (mid-tone so it reads at a distance)
+  const g = ctx.createLinearGradient(0, 0, S, S);
+  g.addColorStop(0, '#5a4d3f'); g.addColorStop(0.5, '#463a2e'); g.addColorStop(1, '#4e4236');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  // Soft veining — many low-contrast flowing curves
+  for (let i = 0; i < 80; i++) {
+    ctx.strokeStyle = `rgba(220,190,130,${Math.random() * 0.06 + 0.02})`;
+    ctx.lineWidth = Math.random() * 2 + 0.4;
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * S, Math.random() * S);
+    ctx.bezierCurveTo(
+      Math.random() * S, Math.random() * S,
+      Math.random() * S, Math.random() * S,
+      Math.random() * S, Math.random() * S
+    );
+    ctx.stroke();
+  }
+  // Subtle highlights — soft radial blobs
+  for (let i = 0; i < 20; i++) {
+    const x = Math.random() * S, y = Math.random() * S, r = Math.random() * 80 + 40;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, 'rgba(200,170,110,0.05)');
+    rg.addColorStop(1, 'rgba(200,170,110,0)');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makeWallTexture(base = '#efe5cc') {
+  // Flat cream with VERY subtle grain — no visible tiling pattern
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, S, S);
+  // Extremely fine pixel noise, barely perceptible, simulates paper/plaster grain
+  const img = ctx.getImageData(0, 0, S, S);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 4; // ±2, very subtle
+    img.data[i]     = Math.min(255, Math.max(0, img.data[i]     + n));
+    img.data[i + 1] = Math.min(255, Math.max(0, img.data[i + 1] + n));
+    img.data[i + 2] = Math.min(255, Math.max(0, img.data[i + 2] + n));
+  }
+  ctx.putImageData(img, 0, 0);
+  // A few soft warm patches so lighting doesn't look uniform
+  for (let i = 0; i < 12; i++) {
+    const x = Math.random() * S, y = Math.random() * S, r = Math.random() * 200 + 100;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, 'rgba(255,240,200,0.05)');
+    rg.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 16;
+  return t;
+}
+
+function makeStarTexture() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#070a1c'; ctx.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * 1024, y = Math.random() * 1024, r = Math.random() * 1.2 + 0.2;
+    ctx.fillStyle = `rgba(255,240,210,${Math.random() * 0.8 + 0.2})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ---------------- Per-country floor generators (procedural canvas) ----------------
+// Each returns a THREE.CanvasTexture already set up with repeat wrap.
+// Mipmaps left ON for floor tiles — their canvas IS power-of-two, safe.
+function _mkFloorTex(canvas, repeatX, repeatY) {
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  return t;
+}
+
+function makeTatamiTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  // Base warm straw color with subtle grain
+  ctx.fillStyle = '#c9b278'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 2800; i++) {
+    ctx.fillStyle = `rgba(${110 + Math.random()*30},${85 + Math.random()*25},${40 + Math.random()*20},${Math.random()*0.22})`;
+    ctx.fillRect(Math.random()*S, Math.random()*S, 1, Math.random() * 14 + 2);
+  }
+  // Four-mat layout: 2x2 grid with dark green binding
+  ctx.strokeStyle = '#1f3a28'; ctx.lineWidth = 14;
+  ctx.strokeRect(8, 8, S-16, S-16);
+  ctx.beginPath(); ctx.moveTo(S/2, 8); ctx.lineTo(S/2, S-8);
+  ctx.moveTo(8, S/2); ctx.lineTo(S-8, S/2); ctx.stroke();
+  return c;
+}
+
+function makeLacquerTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(S/2, S/2, 80, S/2, S/2, S*0.8);
+  g.addColorStop(0, '#4a0a0a'); g.addColorStop(1, '#280505');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  // Fine gold filigree specks
+  ctx.fillStyle = 'rgba(196,160,90,0.5)';
+  for (let i = 0; i < 180; i++) {
+    ctx.beginPath();
+    ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 1.8 + 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return c;
+}
+
+function makeHanjiTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ece3c9'; ctx.fillRect(0, 0, S, S);
+  // Paper-fiber streaks
+  for (let i = 0; i < 900; i++) {
+    ctx.strokeStyle = `rgba(${120 + Math.random()*30},${100 + Math.random()*20},${70 + Math.random()*20},${Math.random()*0.18})`;
+    ctx.lineWidth = Math.random() * 0.8 + 0.3;
+    ctx.beginPath();
+    const x = Math.random() * S, y = Math.random() * S;
+    ctx.moveTo(x, y); ctx.lineTo(x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 60);
+    ctx.stroke();
+  }
+  // Celadon hairline
+  ctx.strokeStyle = 'rgba(140,180,160,0.3)'; ctx.lineWidth = 1;
+  ctx.strokeRect(18, 18, S - 36, S - 36);
+  return c;
+}
+
+function makeTerracottaTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#a85a36'; ctx.fillRect(0, 0, S, S);
+  // Plaster mottling
+  for (let i = 0; i < 70; i++) {
+    ctx.fillStyle = `rgba(${140 + Math.random()*40},${70 + Math.random()*20},${40 + Math.random()*20},${Math.random()*0.35})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 120 + 40, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Grout lines (rectangular tile)
+  ctx.strokeStyle = '#3a1f12'; ctx.lineWidth = 6;
+  for (let i = 0; i <= 1024; i += 256) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, S); ctx.stroke();
+  }
+  for (let j = 0; j <= 1024; j += 256) {
+    ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(S, j); ctx.stroke();
+  }
+  return c;
+}
+
+function makeStoneTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#2a2e33'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 200; i++) {
+    ctx.fillStyle = `rgba(${60 + Math.random()*30},${60 + Math.random()*30},${70 + Math.random()*30},${Math.random()*0.5})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 90 + 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return c;
+}
+
+function makeTeakTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#5a3a1e'; ctx.fillRect(0, 0, S, S);
+  // Wood grain
+  for (let i = 0; i < 240; i++) {
+    ctx.strokeStyle = `rgba(${30 + Math.random()*30},${20 + Math.random()*20},${10 + Math.random()*15},${Math.random()*0.55})`;
+    ctx.lineWidth = Math.random() * 1.5 + 0.4;
+    ctx.beginPath();
+    const y = Math.random() * S;
+    ctx.moveTo(0, y);
+    for (let x = 0; x < S; x += 12) ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
+    ctx.stroke();
+  }
+  // Plank separators
+  ctx.strokeStyle = '#1f1108'; ctx.lineWidth = 3;
+  for (let y = 0; y <= 1024; y += 128) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
+  }
+  return c;
+}
+
+function makeJerusalemTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#d6c49b'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 140; i++) {
+    ctx.fillStyle = `rgba(${180 + Math.random()*30},${160 + Math.random()*20},${120 + Math.random()*25},${Math.random()*0.55})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 80 + 20, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Stone blocks, offset courses
+  ctx.strokeStyle = '#7a6540'; ctx.lineWidth = 4;
+  for (let row = 0; row < 4; row++) {
+    const off = (row % 2) * 128;
+    ctx.beginPath(); ctx.moveTo(0, row * 256); ctx.lineTo(S, row * 256); ctx.stroke();
+    for (let col = 0; col < 5; col++) {
+      ctx.beginPath();
+      ctx.moveTo(col * 256 + off, row * 256);
+      ctx.lineTo(col * 256 + off, (row + 1) * 256);
+      ctx.stroke();
+    }
+  }
+  return c;
+}
+
+function makeSandTex() {
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#d8b478'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 3200; i++) {
+    ctx.fillStyle = `rgba(${160 + Math.random()*50},${120 + Math.random()*40},${70 + Math.random()*30},${Math.random()*0.35})`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, Math.random() * 2 + 1, 1);
+  }
+  return c;
+}
+
+const FLOOR_GENS = {
+  marble:     { fn: () => makeMarbleTexture(),  repeat: [4, 4] },
+  tatami:     { fn: () => makeTatamiTex(),      repeat: [2, 2] },
+  lacquer:    { fn: () => makeLacquerTex(),     repeat: [3, 3] },
+  hanji:      { fn: () => makeHanjiTex(),       repeat: [2, 2] },
+  terracotta: { fn: () => makeTerracottaTex(),  repeat: [3, 3] },
+  stone:      { fn: () => makeStoneTex(),       repeat: [4, 4] },
+  teak:       { fn: () => makeTeakTex(),        repeat: [2, 4] },
+  jerusalem:  { fn: () => makeJerusalemTex(),   repeat: [3, 3] },
+  sand:       { fn: () => makeSandTex(),        repeat: [5, 5] },
+};
+
+function floorTexFor(kind) {
+  const gen = FLOOR_GENS[kind] || FLOOR_GENS.marble;
+  return _mkFloorTex(gen.fn(), gen.repeat[0], gen.repeat[1]);
+}
+
+const floorTex = makeMarbleTexture(); floorTex.repeat.set(4, 4);  // foyer default
+const wallTex = makeWallTexture(); wallTex.repeat.set(2, 1);
+const wallTexLetter = makeStarTexture();
+
+MAT.floor = new THREE.MeshStandardMaterial({
+  map: floorTex, roughness: 0.4, metalness: 0.0,
+  emissive: 0x5a3f28, emissiveIntensity: 0.1,
+  polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+});
+MAT.wall = new THREE.MeshStandardMaterial({
+  map: wallTex, roughness: 0.95, color: 0xf4ead5,
+  emissive: 0xf4ead5, emissiveIntensity: 0.18,  // self-glow so walls stay luminous everywhere
+  // polygonOffset pushes wall depth values slightly back — trim, paintings, signs, flags
+  // drawn anywhere near the wall always win the depth test, no Z-fighting stripes possible.
+  polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+});
+MAT.wallLetter = new THREE.MeshStandardMaterial({
+  map: wallTexLetter, roughness: 0.4, color: 0x1a2040, emissive: 0x0a0e27, emissiveIntensity: 0.15,
+  polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+});
+MAT.ceiling = new THREE.MeshStandardMaterial({ color: 0x2a2520, roughness: 1 });
+MAT.trim = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.8 });
+MAT.frame = new THREE.MeshStandardMaterial({ color: 0x4a3526, roughness: 0.55, metalness: 0.1 });
+MAT.plaqueMat = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.2, metalness: 0.9 });
+MAT.bench = new THREE.MeshStandardMaterial({ color: 0x3a2a1d, roughness: 0.5, metalness: 0.05 });
+
+// ---------------- Rooms (linear corridor museum) ----------------
+const WALL_H = 4.5;
+const DOOR_W = 2.2;
+const DOOR_H = 3.2;
+
+// Country theme table — the ONLY place country display data lives.
+// Keys match `room:` values on exhibits and `country` keys from photo-manifest.json.
+// Adding a country is: append an entry here + (optional) add a flag drawer above.
+const COUNTRY_THEMES = {
+  japan:         { name: "Japan",          native: "日本",       english: "JAPAN",          primary: 0xBC002D, secondary: 0xFFFFFF, accent: 0xBC002D, flagFn: "japan",     floor: "tatami" },
+  china:         { name: "China",          native: "中国",       english: "CHINA",          primary: 0xEE1C25, secondary: 0xFFDE00, accent: 0xFFDE00, flagFn: "china",     floor: "lacquer" },
+  korea:         { name: "Korea",          native: "한국",       english: "KOREA",          primary: 0x003478, secondary: 0xC60C30, accent: 0xC60C30, flagFn: "korea",     floor: "hanji" },
+  "south-korea": { name: "Korea",          native: "한국",       english: "KOREA",          primary: 0x003478, secondary: 0xC60C30, accent: 0xC60C30, flagFn: "korea",     floor: "hanji" },
+  taiwan:        { name: "Taiwan",         native: "台灣",       english: "TAIWAN",         primary: 0xFE0000, secondary: 0xFFFFFF, accent: 0x000095, flagFn: "taiwan",    floor: "stone" },
+  thailand:      { name: "Thailand",       native: "ประเทศไทย",  english: "THAILAND",       primary: 0xA51931, secondary: 0xFFFFFF, accent: 0x2D2A4A, flagFn: "thailand",  floor: "terracotta" },
+  singapore:     { name: "Singapore",      native: "新加坡",     english: "SINGAPORE",      primary: 0xEF3340, secondary: 0xFFFFFF, accent: 0xEF3340, flagFn: "singapore", floor: "marble" },
+  vietnam:       { name: "Vietnam",        native: "Việt Nam",   english: "VIETNAM",        primary: 0xDA251D, secondary: 0xFFFF00, accent: 0xFFFF00, flagFn: "vietnam",   floor: "teak" },
+  "hong-kong":   { name: "Hong Kong",      native: "香港",       english: "HONG KONG",      primary: 0xDE2408, secondary: 0xFFFFFF, accent: 0xFFFFFF, flagFn: "banner",    floor: "lacquer" },
+  israel:        { name: "Israel",         native: "ישראל",      english: "ISRAEL",         primary: 0x0038B8, secondary: 0xFFFFFF, accent: 0x0038B8, flagFn: "israel",    floor: "jerusalem" },
+  uae:           { name: "UAE",            native: "الإمارات",   english: "UAE",            primary: 0x00732F, secondary: 0xFFFFFF, accent: 0xFF0000, flagFn: "banner",    floor: "sand" },
+  cambodia:      { name: "Cambodia",       native: "កម្ពុជា",     english: "CAMBODIA",       primary: 0x032EA1, secondary: 0xE00025, accent: 0xE00025, flagFn: "banner",    floor: "terracotta" },
+  laos:          { name: "Laos",           native: "ລາວ",        english: "LAOS",           primary: 0xCE1126, secondary: 0x002868, accent: 0xFFFFFF, flagFn: "banner",    floor: "teak" },
+  malaysia:      { name: "Malaysia",       native: "Malaysia",   english: "MALAYSIA",       primary: 0xCC0001, secondary: 0xFFCC00, accent: 0x010066, flagFn: "banner",    floor: "teak" },
+  indonesia:     { name: "Indonesia",      native: "Indonesia",  english: "INDONESIA",      primary: 0xFF0000, secondary: 0xFFFFFF, accent: 0xFF0000, flagFn: "banner",    floor: "terracotta" },
+  philippines:   { name: "Philippines",    native: "Pilipinas",  english: "PHILIPPINES",    primary: 0x0038A8, secondary: 0xCE1126, accent: 0xFCD116, flagFn: "banner",    floor: "teak" },
+  india:         { name: "India",          native: "भारत",        english: "INDIA",          primary: 0xFF9933, secondary: 0xFFFFFF, accent: 0x138808, flagFn: "banner",    floor: "terracotta" },
+  usa:           { name: "United States",  native: "USA",        english: "UNITED STATES",  primary: 0x3C3B6E, secondary: 0xFFFFFF, accent: 0xB22234, flagFn: "banner",    floor: "marble" },
+  uk:            { name: "United Kingdom", native: "UK",         english: "UNITED KINGDOM", primary: 0x012169, secondary: 0xFFFFFF, accent: 0xC8102E, flagFn: "banner",    floor: "marble" },
+  france:        { name: "France",         native: "France",     english: "FRANCE",         primary: 0x0055A4, secondary: 0xFFFFFF, accent: 0xEF4135, flagFn: "banner",    floor: "marble" },
+  italy:         { name: "Italy",          native: "Italia",     english: "ITALIA",         primary: 0x009246, secondary: 0xFFFFFF, accent: 0xCE2B37, flagFn: "banner",    floor: "marble" },
+  greece:        { name: "Greece",         native: "Ελλάς",      english: "HELLAS",         primary: 0x0D5EAF, secondary: 0xFFFFFF, accent: 0x0D5EAF, flagFn: "banner",    floor: "marble" },
+  spain:         { name: "Spain",          native: "España",     english: "ESPAÑA",         primary: 0xAA151B, secondary: 0xF1BF00, accent: 0xAA151B, flagFn: "banner",    floor: "terracotta" },
+  unknown:       { name: "Travels",        native: "✦",          english: "TRAVELS",        primary: 0xC4A05A, secondary: 0xF4EAD5, accent: 0xC4A05A, flagFn: "banner",    floor: "marble" },
+};
+
+// Size the room to its exhibit count.
+// Thresholds match the Phase-3 spec: 1–5 / 6–15 / 16–30 / 31–60 / 60+.
+function sizeForCount(n) {
+  if (n <= 5)  return { w: 10, d: 10 };
+  if (n <= 15) return { w: 12, d: 16 };
+  if (n <= 30) return { w: 16, d: 24 };
+  if (n <= 60) return { w: 20, d: 32 };
+  return { w: 22, d: 38 };  // large wings; placeOnWall spreads across 3 walls
+}
+
+// Derive room list from exhibits: foyer → one room per country (chronological) → letter.
+// Countries with 1–2 exhibits fold into a shared "Travels" room so the corridor
+// doesn't fragment into a dozen tiny chambers.
+function deriveRooms(exhibits) {
+  const byCountry = {};
+  exhibits.forEach((ex, idx) => {
+    const key = ex.room || "unknown";
+    (byCountry[key] = byCountry[key] || []).push({ ex, idx });
+  });
+
+  // Any country with <3 exhibits gets reassigned to "unknown" (Travels).
+  const merged = {};
+  Object.entries(byCountry).forEach(([k, arr]) => {
+    if (arr.length < 3 && k !== "japan" && k !== "china" && k !== "korea") {
+      (merged["unknown"] = merged["unknown"] || []).push(...arr);
+    } else {
+      merged[k] = arr;
+    }
+  });
+
+  // Sort country keys by the first exhibit index (preserves chronological
+  // order: earliest trip country first, most recent last).
+  const ordered = Object.keys(merged).sort((a, b) => {
+    return Math.min(...merged[a].map(e => e.idx))
+         - Math.min(...merged[b].map(e => e.idx));
+  });
+
+  const rooms = [
+    { key: "foyer", name: "Foyer", w: 8, d: 8, tone: "warm" },
+  ];
+  ordered.forEach(key => {
+    const theme = COUNTRY_THEMES[key] || COUNTRY_THEMES.unknown;
+    const size = sizeForCount(merged[key].length);
+    // Rewrite each exhibit's room key so all arrivals in this bucket match.
+    merged[key].forEach(({ ex }) => { ex.room = key; });
+    rooms.push({
+      key, name: theme.name, w: size.w, d: size.d, tone: "country",
+      country: { ...theme, native: theme.native, english: theme.english },
+      exhibitCount: merged[key].length,
+    });
+  });
+  rooms.push({ key: "letter", name: "Yet to Come", w: 12, d: 10, tone: "night" });
+  return rooms;
+}
+
+const ROOMS = deriveRooms(CFG.exhibits);
+
+// Compute z positions (centered on x=0, laid along +z)
+let zCursor = 0;
+ROOMS.forEach((r, i) => {
+  r.zStart = zCursor;
+  r.zEnd = zCursor + r.d;
+  r.zCenter = zCursor + r.d / 2;
+  zCursor = r.zEnd;
+});
+const MUSEUM_LENGTH = zCursor;
+
+// Storage for collision boxes and interactables
+const collisionBoxes = [];
+const interactables = []; // { mesh, position, exhibit }
+
+// ---------------- Room construction ----------------
+function addCollision(x, z, w, d) {
+  collisionBoxes.push({ minX: x - w/2, maxX: x + w/2, minZ: z - d/2, maxZ: z + d/2 });
+}
+
+function buildWallSegment(x, y, z, w, h, d, material, rotY = 0) {
+  const geom = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = rotY;
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+// ---------------- Country flag canvas renderers ----------------
+function drawJapanFlag() {
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  // White field
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 900, 600);
+  // Red disc: radius = 3/10 of height, centered
+  ctx.fillStyle = '#bc002d';
+  ctx.beginPath();
+  ctx.arc(450, 300, 180, 0, Math.PI * 2);
+  ctx.fill();
+  // Subtle aged edge so it feels like a printed flag, not a screen
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+function drawChinaFlag() {
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  // Red field
+  ctx.fillStyle = '#ee1c25';
+  ctx.fillRect(0, 0, 900, 600);
+  // Stars: PRC flag is 30 × 20 units. Our canvas is 900 × 600, so 30 px per unit.
+  const unit = 30;
+  ctx.fillStyle = '#ffde00';
+  // Helper: draw a 5-pointed star with one point aimed at `aimAt` (or straight up if null)
+  function star(cx, cy, radius, aimAt) {
+    let rotation;
+    if (aimAt) {
+      rotation = Math.atan2(aimAt.y - cy, aimAt.x - cx);
+    } else {
+      rotation = -Math.PI / 2;
+    }
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a1 = rotation + i * (2 * Math.PI / 5);
+      const a2 = a1 + Math.PI / 5;
+      const x1 = cx + Math.cos(a1) * radius;
+      const y1 = cy + Math.sin(a1) * radius;
+      const x2 = cx + Math.cos(a2) * radius * 0.382;
+      const y2 = cy + Math.sin(a2) * radius * 0.382;
+      if (i === 0) ctx.moveTo(x1, y1); else ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Large star: center (5, 5) units, radius 3 units
+  const big = { x: 5 * unit, y: 5 * unit };
+  star(big.x, big.y, 3 * unit, null);
+  // Four small stars, each with one point aimed at the big star's center
+  const smalls = [ [10, 2], [12, 4], [12, 7], [10, 9] ];
+  smalls.forEach(([ux, uy]) => {
+    star(ux * unit, uy * unit, 1 * unit, big);
+  });
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+function drawKoreaFlag() {
+  // Taegukgi: white field, red/blue yin-yang in center, 4 black trigrams in corners
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 900, 600);
+  const cx = 450, cy = 300, R = 120;
+  // Red top half of yin-yang
+  ctx.fillStyle = '#c60c30';
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, Math.PI, 0);
+  ctx.arc(cx - R/2, cy, R/2, 0, Math.PI, false);
+  ctx.arc(cx + R/2, cy, R/2, Math.PI, 0, true);
+  ctx.closePath();
+  ctx.fill();
+  // Blue bottom half
+  ctx.fillStyle = '#003478';
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI);
+  ctx.arc(cx + R/2, cy, R/2, Math.PI, 0, false);
+  ctx.arc(cx - R/2, cy, R/2, 0, Math.PI, true);
+  ctx.closePath();
+  ctx.fill();
+  // Four corner trigrams (simplified as 3 black bars each)
+  ctx.fillStyle = '#000000';
+  const drawTrigram = (tx, ty, angle, pattern) => {
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(angle);
+    const barW = 95, barH = 13, gap = 7;
+    const totalH = 3 * barH + 2 * gap;
+    for (let i = 0; i < 3; i++) {
+      const yOff = i * (barH + gap) - totalH / 2 + barH / 2;
+      if (pattern[i]) ctx.fillRect(-barW/2, yOff - barH/2, barW, barH);
+      else {
+        ctx.fillRect(-barW/2, yOff - barH/2, barW * 0.42, barH);
+        ctx.fillRect(barW * 0.08, yOff - barH/2, barW * 0.42, barH);
+      }
+    }
+    ctx.restore();
+  };
+  drawTrigram(160, 150, -Math.PI / 4, [true, true, true]);    // ☰ geon
+  drawTrigram(740, 150,  Math.PI / 4, [true, false, true]);   // ☲ ri
+  drawTrigram(160, 450, -3 * Math.PI / 4, [false, true, false]); // ☵ gam
+  drawTrigram(740, 450,  3 * Math.PI / 4, [false, false, false]); // ☷ gon
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// ---- Taiwan: blue canton with sun-and-stars, red field. 1:1.5 → 900×600. ----
+function drawTaiwanFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fe0000'; ctx.fillRect(0, 0, 900, 600);
+  // Canton (top-left quarter)
+  ctx.fillStyle = '#000095'; ctx.fillRect(0, 0, 450, 300);
+  // Sun: 12-point white star on blue. 12 triangular rays around a central disc.
+  const sx = 225, sy = 150;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    const a1 = a - 0.18, a2 = a + 0.18;
+    ctx.beginPath();
+    ctx.moveTo(sx + Math.cos(a) * 85, sy + Math.sin(a) * 85);
+    ctx.lineTo(sx + Math.cos(a1) * 30, sy + Math.sin(a1) * 30);
+    ctx.lineTo(sx + Math.cos(a2) * 30, sy + Math.sin(a2) * 30);
+    ctx.closePath(); ctx.fill();
+  }
+  // Central disc
+  ctx.fillStyle = '#000095'; ctx.beginPath(); ctx.arc(sx, sy, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(sx, sy, 35, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// ---- Thailand: red/white/blue/white/red horizontal bands, middle band 2× height. ----
+function drawThailandFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  // 1:1:2:1:1 proportions → 600 / 6 = 100 unit
+  ctx.fillStyle = '#a51931'; ctx.fillRect(0,   0, 900, 100);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 100, 900, 100);
+  ctx.fillStyle = '#2d2a4a'; ctx.fillRect(0, 200, 900, 200);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 400, 900, 100);
+  ctx.fillStyle = '#a51931'; ctx.fillRect(0, 500, 900, 100);
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// ---- Singapore: red over white, crescent + 5 stars in red upper half. ----
+function drawSingaporeFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ef3340'; ctx.fillRect(0,   0, 900, 300);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 300, 900, 300);
+  // Crescent (white): outer disc then subtract inner offset disc
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(210, 150, 90, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ef3340';
+  ctx.beginPath(); ctx.arc(240, 135, 74, 0, Math.PI * 2); ctx.fill();
+  // Five stars in pentagon arrangement
+  ctx.fillStyle = '#ffffff';
+  const starPts = [[345,115],[395,150],[376,208],[316,208],[297,150]];
+  for (const [sx, sy] of starPts) drawFiveStarPath(ctx, sx, sy, 20);
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// ---- Vietnam: red field with single yellow star centered. ----
+function drawVietnamFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#da251d'; ctx.fillRect(0, 0, 900, 600);
+  ctx.fillStyle = '#ffff00';
+  drawFiveStarPath(ctx, 450, 300, 170);
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// ---- Israel: white field, blue stripes top/bottom, Star of David centered. ----
+function drawIsraelFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 900, 600);
+  ctx.fillStyle = '#0038b8';
+  ctx.fillRect(0,  88, 900, 56);
+  ctx.fillRect(0, 456, 900, 56);
+  // Star of David: two overlapping equilateral triangles, stroked
+  ctx.strokeStyle = '#0038b8'; ctx.lineWidth = 32; ctx.lineJoin = 'miter';
+  const R = 135, cx = 450, cy = 300;
+  function tri(rot) {
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = rot + (i / 3) * Math.PI * 2;
+      const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+  tri(-Math.PI / 2);
+  tri( Math.PI / 2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
+// Helper shared by several flags — filled 5-point star via Path
+function drawFiveStarPath(ctx, cx, cy, radius, rotation = -Math.PI/2) {
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a1 = rotation + i * (2 * Math.PI / 5);
+    const a2 = a1 + Math.PI / 5;
+    ctx.lineTo(cx + Math.cos(a1) * radius, cy + Math.sin(a1) * radius);
+    ctx.lineTo(cx + Math.cos(a2) * radius * 0.382, cy + Math.sin(a2) * radius * 0.382);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawSimpleBanner(country) {
+  // Elegant two-tone banner with native script and ornamental frame.
+  // Used for "chapter" rooms that represent specific memories rather than countries.
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  const primaryHex   = '#' + country.primary.toString(16).padStart(6, '0');
+  const secondaryHex = '#' + country.secondary.toString(16).padStart(6, '0');
+  const accentHex    = '#' + country.accent.toString(16).padStart(6, '0');
+  // Vertical gradient field
+  const grad = ctx.createLinearGradient(0, 0, 0, 600);
+  grad.addColorStop(0, primaryHex);
+  // Darken the bottom a bit — compute darker variant
+  const r = (country.primary >> 16) & 255, g = (country.primary >> 8) & 255, b = country.primary & 255;
+  const dark = '#' +
+    Math.max(0, Math.floor(r * 0.75)).toString(16).padStart(2, '0') +
+    Math.max(0, Math.floor(g * 0.75)).toString(16).padStart(2, '0') +
+    Math.max(0, Math.floor(b * 0.75)).toString(16).padStart(2, '0');
+  grad.addColorStop(1, dark);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 900, 600);
+  // Ornamental double border
+  ctx.strokeStyle = accentHex;
+  ctx.lineWidth = 8;
+  ctx.strokeRect(32, 32, 836, 536);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(52, 52, 796, 496);
+  // Native script centered, very large — the "flag" is the word itself
+  ctx.fillStyle = secondaryHex;
+  ctx.font = '700 240px "Cormorant Garamond", "Noto Sans SC", "Noto Sans JP", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // soft shadow for depth
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 4;
+  ctx.fillText(country.native, 450, 310);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  // Small ornamental divider dots
+  ctx.fillStyle = accentHex;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.arc(450 + i * 30, 470, 4, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  return c;
+}
+
+function drawCountryName(country) {
+  const c = document.createElement('canvas');
+  c.width = 1400; c.height = 280;
+  const ctx = c.getContext('2d');
+  const primaryHex = '#' + country.primary.toString(16).padStart(6, '0');
+  const accentHex  = '#' + country.accent.toString(16).padStart(6, '0');
+  // Native script (left side)
+  ctx.fillStyle = primaryHex;
+  ctx.font = '300 160px "Cormorant Garamond", "Noto Sans SC", "Noto Sans JP", serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(country.native, 620, 140);
+  // Divider (thin line between native and English)
+  ctx.strokeStyle = accentHex;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(700, 90); ctx.lineTo(700, 190);
+  ctx.stroke();
+  // English name, slightly wider spacing
+  ctx.fillStyle = primaryHex;
+  ctx.font = '500 110px "Cormorant Garamond", serif';
+  ctx.textAlign = 'left';
+  // Fake letter-spacing by spacing out chars manually
+  const letters = country.english.split('');
+  let x = 770;
+  letters.forEach(ch => {
+    ctx.fillText(ch, x, 140);
+    x += ctx.measureText(ch).width + 12;
+  });
+  return c;
+}
+
+// ---------------- Floor medallions (subtle inlay near country room entrance) ----------------
+function drawFiveStar(ctx, cx, cy, radius, rotation = -Math.PI/2) {
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a1 = rotation + i * (2 * Math.PI / 5);
+    const a2 = a1 + Math.PI / 5;
+    const x1 = cx + Math.cos(a1) * radius;
+    const y1 = cy + Math.sin(a1) * radius;
+    const x2 = cx + Math.cos(a2) * radius * 0.382;
+    const y2 = cy + Math.sin(a2) * radius * 0.382;
+    if (i === 0) ctx.moveTo(x1, y1); else ctx.lineTo(x1, y1);
+    ctx.lineTo(x2, y2);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawFloorMedallion(country) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 512);
+  const key = country.flagFn;
+  if (key === "japan") {
+    ctx.fillStyle = '#bc002d';
+    ctx.beginPath(); ctx.arc(256, 256, 170, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(196,160,90,0.65)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(256, 256, 205, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(256, 256, 215, 0, Math.PI * 2); ctx.stroke();
+  } else if (key === "china") {
+    ctx.fillStyle = 'rgba(238,28,37,0.6)';
+    ctx.beginPath(); ctx.arc(256, 256, 190, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffde00';
+    drawFiveStar(ctx, 256, 256, 110);
+    ctx.strokeStyle = 'rgba(196,160,90,0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(256, 256, 205, 0, Math.PI * 2); ctx.stroke();
+  } else {
+    // Generic chapter medallion: primary-color disc with native script inscribed
+    const primaryHex = '#' + country.primary.toString(16).padStart(6, '0');
+    const accentHex  = '#' + country.accent.toString(16).padStart(6, '0');
+    ctx.fillStyle = primaryHex;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.arc(256, 256, 180, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.strokeStyle = accentHex;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(256, 256, 205, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(256, 256, 215, 0, Math.PI * 2); ctx.stroke();
+    // Native script engraved
+    ctx.fillStyle = accentHex;
+    ctx.font = '700 110px "Cormorant Garamond", "Noto Sans SC", "Noto Sans JP", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(country.native, 256, 256);
+  }
+  return c;
+}
+
+// Build the flag and country-name displays for a country-themed room
+function buildCountryAccents(room) {
+  const { country, w, zStart, zEnd } = room;
+  // ----- Flag: mounted on zStart wall (facing -Z, visible from previous room) -----
+  const flagDrawers = {
+    japan:     drawJapanFlag,
+    china:     drawChinaFlag,
+    korea:     drawKoreaFlag,
+    taiwan:    drawTaiwanFlag,
+    thailand:  drawThailandFlag,
+    singapore: drawSingaporeFlag,
+    vietnam:   drawVietnamFlag,
+    israel:    drawIsraelFlag,
+  };
+  const flagCanvas = flagDrawers[country.flagFn]
+    ? flagDrawers[country.flagFn]()
+    : drawSimpleBanner(country);
+  const flagTex = new THREE.CanvasTexture(flagCanvas);
+  flagTex.colorSpace = THREE.SRGBColorSpace;
+  flagTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  // Canvas→flag texture; UVs on the plane handle the mirror, no texture wrap tricks needed.
+  flagTex.generateMipmaps = false;
+  flagTex.minFilter = THREE.LinearFilter;
+  flagTex.magFilter = THREE.LinearFilter;
+  const flagMat = new THREE.MeshStandardMaterial({
+    map: flagTex, roughness: 0.55, metalness: 0.05,
+    emissive: 0xffffff, emissiveMap: flagTex, emissiveIntensity: 1.0
+  });
+  // Larger flag (2.4 × 1.2 fits above DOOR_H=3.2 → WALL_H=4.5 gap) so it reads from afar
+  const flagW = 2.4, flagH = 1.2;
+  // Flip UVs on the plane's X-axis (deterministic mirror fix, no browser-variance tricks)
+  const flagGeom = new THREE.PlaneGeometry(flagW, flagH);
+  const flagUv = flagGeom.attributes.uv;
+  for (let i = 0; i < flagUv.count; i++) flagUv.setX(i, 1 - flagUv.getX(i));
+  flagUv.needsUpdate = true;
+  const flag = new THREE.Mesh(flagGeom, flagMat);
+  // Wall is a 0.2m-thick box centered at zStart; pull flag 0.2m further so it sits CLEARLY
+  // in front of the wall's front face (previously only 1.5cm clearance → Z-fighting on mobile)
+  flag.position.set(0, 3.85, zStart - 0.2);
+  flag.rotation.y = Math.PI; // face -Z, toward previous room
+  scene.add(flag);
+  // A thin brass frame around the flag
+  const frameColor = country.accent;
+  const frameMat = new THREE.MeshStandardMaterial({ color: frameColor, roughness: 0.3, metalness: 0.9 });
+  const fw = 0.06;
+  const frameTop = new THREE.Mesh(new THREE.BoxGeometry(flagW + fw*2, fw, 0.04), frameMat);
+  frameTop.position.set(0, 3.85 + flagH/2 + fw/2, zStart - 0.21);
+  scene.add(frameTop);
+  const frameBot = frameTop.clone(); frameBot.position.y = 3.85 - flagH/2 - fw/2; scene.add(frameBot);
+  const frameSide = new THREE.Mesh(new THREE.BoxGeometry(fw, flagH, 0.04), frameMat);
+  frameSide.position.set(-flagW/2 - fw/2, 3.85, zStart - 0.21); scene.add(frameSide);
+  const frameSide2 = frameSide.clone(); frameSide2.position.x = flagW/2 + fw/2; scene.add(frameSide2);
+
+  // Dedicated spotlight aimed at the flag from a few meters ahead (-Z side), warm white
+  const flagSpot = new THREE.SpotLight(0xfff1dd, 4, 8, Math.PI / 5, 0.35, 1);
+  flagSpot.position.set(0, WALL_H + 0.3, zStart - 2.5);
+  flagSpot.target.position.set(0, 3.85, zStart - 0.12);
+  scene.add(flagSpot); scene.add(flagSpot.target);
+
+  // (Removed wall country-name sign — it sat at z = zEnd - 0.2 of the current room,
+  // which is identical to z = zStart - 0.2 of the next room where the NEXT country's
+  // flag lives. They overlapped, causing "JAPAN" text to render on top of the China flag.
+  // The HUD + chapter overlay + floor medallion + flag already identify each country.)
+
+  // ----- Floor medallion: subtle country inlay just past the entrance -----
+  const medCanvas = drawFloorMedallion(country);
+  const medTex = new THREE.CanvasTexture(medCanvas);
+  medTex.colorSpace = THREE.SRGBColorSpace;
+  const medMat = new THREE.MeshStandardMaterial({
+    map: medTex, transparent: true, roughness: 0.55, metalness: 0.25
+  });
+  const medSize = 1.4;
+  const medallion = new THREE.Mesh(new THREE.PlaneGeometry(medSize, medSize), medMat);
+  medallion.rotation.x = -Math.PI / 2;
+  medallion.position.set(0, 0.015, zStart + 2.2);
+  medallion.receiveShadow = true;
+  scene.add(medallion);
+  // Small downward spot to highlight the medallion
+  const medSpot = new THREE.SpotLight(0xffeacc, 1.2, 6, Math.PI / 4, 0.4, 1);
+  medSpot.position.set(0, 3.5, zStart + 2.2);
+  medSpot.target.position.set(0, 0, zStart + 2.2);
+  scene.add(medSpot); scene.add(medSpot.target);
+}
+
+function buildRoom(room, prevRoom, nextRoom) {
+  const { w, d, zStart, zEnd, zCenter, tone } = room;
+  const halfW = w / 2;
+  const wallMat = tone === "night" ? MAT.wallLetter : MAT.wall;
+  // Trim color: country rooms use the country's accent color; others use brass.
+  const trimColor = tone === "country" ? room.country.accent : 0xc4a05a;
+  const trimMat = tone === "country"
+    ? new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.3, metalness: 0.85 })
+    : MAT.trim;
+
+  // Floor — per-country procedural tile for country rooms, marble for foyer,
+  // deep blue for the letter room. Each country floor gets its own material
+  // instance so the texture repeats tile correctly at the room's scale.
+  let floorMat;
+  if (tone === "night") {
+    floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0e27, roughness: 0.2, metalness: 0.3 });
+  } else if (tone === "country" && room.country && room.country.floor) {
+    const tex = floorTexFor(room.country.floor);
+    // polygonOffset keeps wall baseboards/paint from Z-fighting the floor
+    floorMat = new THREE.MeshStandardMaterial({
+      map: tex, roughness: 0.55, metalness: 0.08,
+      emissive: 0x302215, emissiveIntensity: 0.06,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+  } else {
+    floorMat = MAT.floor;
+  }
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    floorMat
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0, zCenter);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Ceiling
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MAT.ceiling);
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(0, WALL_H, zCenter);
+  scene.add(ceil);
+
+  // Left wall (x = -halfW)
+  buildWallSegment(-halfW - 0.1, WALL_H / 2, zCenter, 0.2, WALL_H, d, wallMat);
+  addCollision(-halfW - 0.1, zCenter, 0.2, d);
+  // Right wall
+  buildWallSegment(halfW + 0.1, WALL_H / 2, zCenter, 0.2, WALL_H, d, wallMat);
+  addCollision(halfW + 0.1, zCenter, 0.2, d);
+
+  // Front wall (z = zStart) — with opening to prev room (or entrance for first)
+  buildEndWall(zStart, w, wallMat, prevRoom ? DOOR_W : 0, trimMat);
+  // Back wall (z = zEnd) — with opening to next room (or solid for last)
+  buildEndWall(zEnd, w, wallMat, nextRoom ? DOOR_W : 0, trimMat);
+
+  // Picture rail on side walls + wainscoting (chair rail at ~0.9m with warm wood panel below) — skip for letter room
+  if (tone !== "night") {
+    // All trim BACK FACES sit 5cm in from the wall face. Previous code positioned centers
+    // so the back faces touched or crashed into the wall box — causing long vertical
+    // Z-fighting stripes running the full length of each side wall on mobile.
+    //   Math: box width W, center x = -halfW + 0.05 + W/2 puts back face at -halfW + 0.05.
+    // Top picture rail (2.85m) — trim-colored
+    const trimL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, d * 0.96), trimMat);
+    trimL.position.set(-halfW + 0.075, 2.85, zCenter);
+    scene.add(trimL);
+    const trimR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, d * 0.96), trimMat);
+    trimR.position.set(halfW - 0.075, 2.85, zCenter);
+    scene.add(trimR);
+    // Chair rail at ~0.9m (classic wainscoting divider)
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x5a3f28, roughness: 0.45, metalness: 0.1 });
+    const chairL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, d), chairMat);
+    chairL.position.set(-halfW + 0.08, 0.9, zCenter);
+    scene.add(chairL);
+    const chairR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, d), chairMat);
+    chairR.position.set(halfW - 0.08, 0.9, zCenter);
+    scene.add(chairR);
+    // Wainscoting panel (warm wood lower half of wall)
+    const wainMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1d, roughness: 0.7, metalness: 0.05 });
+    const panelH = 0.72; // between baseboard top (0.18) and chair rail (0.9)
+    const wainL = new THREE.Mesh(new THREE.BoxGeometry(0.05, panelH, d - 0.1), wainMat);
+    wainL.position.set(-halfW + 0.075, 0.18 + panelH/2, zCenter);
+    scene.add(wainL);
+    const wainR = new THREE.Mesh(new THREE.BoxGeometry(0.05, panelH, d - 0.1), wainMat);
+    wainR.position.set(halfW - 0.075, 0.18 + panelH/2, zCenter);
+    scene.add(wainR);
+    // Baseboard
+    const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, d), MAT.frame);
+    baseL.position.set(-halfW + 0.08, 0.09, zCenter);
+    scene.add(baseL);
+    const baseR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, d), MAT.frame);
+    baseR.position.set(halfW - 0.08, 0.09, zCenter);
+    scene.add(baseR);
+  }
+
+  // Ambient room light (warm low glow, slightly tinted by country)
+  let ambientColor;
+  if (tone === "night") ambientColor = 0x4a5088;
+  else if (tone === "country") {
+    // Blend country primary with warm white for atmosphere
+    const c = new THREE.Color(room.country.primary).lerp(new THREE.Color(0xffd4a0), 0.7);
+    ambientColor = c.getHex();
+  } else ambientColor = 0xffd4a0;
+  // Ceiling fixture warm accent — stronger, decayed gently so entire room is lit
+  const ambient = new THREE.PointLight(ambientColor, tone === "night" ? 0.6 : 1.6, 50, 0.5);
+  ambient.position.set(0, WALL_H - 0.3, zCenter);
+  scene.add(ambient);
+
+  // Ceiling light fixture (disc) — skip in letter room
+  if (tone !== "night") {
+    const fixture = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.38, 0.1, 24),
+      new THREE.MeshStandardMaterial({ color: 0xf5e2a5, emissive: 0xffe5b0, emissiveIntensity: 1.3, metalness: 0.7, roughness: 0.35 })
+    );
+    fixture.position.set(0, WALL_H - 0.05, zCenter);
+    scene.add(fixture);
+    // Soft glow disc just below the fixture (additive, depth-off so it reads like bulb spill)
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.8, 1.8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffd9a0, transparent: true, opacity: 0.28,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      })
+    );
+    glow.rotation.x = Math.PI / 2; // face down
+    glow.position.set(0, WALL_H - 0.12, zCenter);
+    scene.add(glow);
+  }
+
+  // Room-specific touches
+  if (room.key === "foyer") {
+    buildFoyer(room);
+  } else if (room.key === "letter") {
+    buildLetterRoom(room);
+  } else if (tone === "country") {
+    buildCountryAccents(room);
+  }
+
+  // Bench in center of larger rooms
+  if (d >= 10 && room.key !== "letter" && room.key !== "foyer") {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(2, 0.45, 0.5), MAT.bench);
+    bench.position.set(0, 0.225, zCenter);
+    bench.castShadow = true; bench.receiveShadow = true;
+    scene.add(bench);
+    // Bench legs
+    [[-0.9, -0.2], [0.9, -0.2], [-0.9, 0.2], [0.9, 0.2]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.08), MAT.trim);
+      leg.position.set(lx, 0.05, zCenter + lz);
+      scene.add(leg);
+    });
+    addCollision(0, zCenter, 2, 0.5);
+  }
+}
+
+function buildEndWall(zPos, roomWidth, wallMat, doorWidth, trimMat) {
+  const halfW = roomWidth / 2;
+  const doorTrim = trimMat || MAT.trim;
+  if (doorWidth === 0) {
+    // Solid wall
+    buildWallSegment(0, WALL_H / 2, zPos, roomWidth, WALL_H, 0.2, wallMat);
+    addCollision(0, zPos, roomWidth, 0.2);
+  } else {
+    // Wall with doorway centered on x=0
+    const halfDoor = doorWidth / 2;
+    const sideW = halfW - halfDoor;
+    // Left piece
+    buildWallSegment(-halfDoor - sideW/2, WALL_H / 2, zPos, sideW, WALL_H, 0.2, wallMat);
+    addCollision(-halfDoor - sideW/2, zPos, sideW, 0.2);
+    // Right piece
+    buildWallSegment(halfDoor + sideW/2, WALL_H / 2, zPos, sideW, WALL_H, 0.2, wallMat);
+    addCollision(halfDoor + sideW/2, zPos, sideW, 0.2);
+    // Lintel above door
+    buildWallSegment(0, DOOR_H + (WALL_H - DOOR_H)/2, zPos, doorWidth, WALL_H - DOOR_H, 0.2, wallMat);
+    // Doorway trim (tinted for country rooms)
+    const trimTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.3, 0.08, 0.24), doorTrim);
+    trimTop.position.set(0, DOOR_H + 0.04, zPos);
+    scene.add(trimTop);
+  }
+}
+
+function buildFoyer(room) {
+  const { w, d, zStart, zEnd, zCenter } = room;
+
+  // --- Ornamental columns flanking the entrance doorway (at zEnd) ---
+  // Two taller brass-capped columns left and right of the doorway into the first gallery.
+  const colW = 0.35;
+  const colH = WALL_H - 0.1;
+  const colMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5, metalness: 0.05 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.85 });
+  for (const sign of [-1, 1]) {
+    const colX = sign * (DOOR_W / 2 + colW / 2 + 0.25);
+    const colZ = zEnd - 0.35;
+    // Shaft
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(colW, colH, colW), colMat);
+    shaft.position.set(colX, colH / 2, colZ);
+    shaft.castShadow = true; shaft.receiveShadow = true;
+    scene.add(shaft);
+    addCollision(colX, colZ, colW + 0.1, colW + 0.1);
+    // Brass cap (capital)
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(colW + 0.18, 0.1, colW + 0.18), capMat);
+    cap.position.set(colX, colH, colZ);
+    scene.add(cap);
+    const capTop = new THREE.Mesh(new THREE.BoxGeometry(colW + 0.3, 0.06, colW + 0.3), capMat);
+    capTop.position.set(colX, colH + 0.08, colZ);
+    scene.add(capTop);
+    // Brass base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(colW + 0.2, 0.12, colW + 0.2), capMat);
+    base.position.set(colX, 0.06, colZ);
+    scene.add(base);
+  }
+
+  // (Removed foyer arch header and engraved panel — they collided with the Japan flag
+  // which occupies the same 20 cm slice in front of the foyer/Japan doorway wall.
+  // The flag serves as the decorative element above the doorway; the floor medallion
+  // and columns carry the museum's "EST. 2024" identity.)
+
+
+
+  // --- Floor medallion at foyer center: engraved museum seal ---
+  const fmc = document.createElement('canvas'); fmc.width = 1024; fmc.height = 1024;
+  const fmx = fmc.getContext('2d');
+  fmx.clearRect(0, 0, 1024, 1024);
+  // Outer ring
+  fmx.strokeStyle = 'rgba(196,160,90,0.55)';
+  fmx.lineWidth = 4;
+  fmx.beginPath(); fmx.arc(512, 512, 440, 0, Math.PI * 2); fmx.stroke();
+  fmx.lineWidth = 2;
+  fmx.beginPath(); fmx.arc(512, 512, 420, 0, Math.PI * 2); fmx.stroke();
+  // Inner ring
+  fmx.beginPath(); fmx.arc(512, 512, 250, 0, Math.PI * 2); fmx.stroke();
+  // Text on the ring
+  fmx.save();
+  fmx.translate(512, 512);
+  fmx.fillStyle = 'rgba(196,160,90,0.65)';
+  fmx.font = '500 44px "Cormorant Garamond", serif';
+  fmx.textAlign = 'center'; fmx.textBaseline = 'middle';
+  const textTop = '·  A  MUSEUM  OF  US  ·';
+  const chars = textTop.split('');
+  const radius = 340;
+  const totalAngle = Math.PI * 0.95;
+  chars.forEach((ch, i) => {
+    const a = -totalAngle / 2 + (i / (chars.length - 1)) * totalAngle;
+    fmx.save();
+    fmx.rotate(a);
+    fmx.translate(0, -radius);
+    fmx.fillText(ch, 0, 0);
+    fmx.restore();
+  });
+  // Bottom text (EST. 2024)
+  const textBot = '·  EST.  MMXXIV  ·';
+  const chars2 = textBot.split('');
+  chars2.forEach((ch, i) => {
+    const a = Math.PI - totalAngle / 2 + (i / (chars2.length - 1)) * totalAngle;
+    fmx.save();
+    fmx.rotate(a);
+    fmx.translate(0, -radius);
+    fmx.rotate(Math.PI); // flip so text reads right-side-up on the bottom
+    fmx.fillText(ch, 0, 0);
+    fmx.restore();
+  });
+  fmx.restore();
+  // Center monogram "M"
+  fmx.fillStyle = 'rgba(196,160,90,0.75)';
+  fmx.font = 'italic 500 220px "Cormorant Garamond", serif';
+  fmx.textAlign = 'center'; fmx.textBaseline = 'middle';
+  fmx.fillText('M', 512, 512);
+  const foyerMedTex = new THREE.CanvasTexture(fmc);
+  foyerMedTex.colorSpace = THREE.SRGBColorSpace;
+  const foyerMedMat = new THREE.MeshStandardMaterial({
+    map: foyerMedTex, transparent: true, roughness: 0.55, metalness: 0.3
+  });
+  const foyerMed = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 3.5), foyerMedMat);
+  foyerMed.rotation.x = -Math.PI / 2;
+  foyerMed.position.set(0, 0.015, zCenter);
+  scene.add(foyerMed);
+
+  // --- Decorative pedestals at the entrance (closer to spawn) ---
+  const pedMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5 });
+  for (const sign of [-1, 1]) {
+    const px = sign * (room.w / 2 - 1.1);
+    const pz = zStart + 1.5;
+    // Pedestal shaft
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), pedMat);
+    ped.position.set(px, 0.5, pz);
+    ped.castShadow = true; ped.receiveShadow = true;
+    scene.add(ped);
+    addCollision(px, pz, 0.7, 0.7);
+    // Brass top
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.72), capMat);
+    top.position.set(px, 1.04, pz);
+    scene.add(top);
+    // Brass base
+    const pedBase = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.72), capMat);
+    pedBase.position.set(px, 0.04, pz);
+    scene.add(pedBase);
+    // Decorative sphere on top
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 16), capMat);
+    orb.position.set(px, 1.3, pz);
+    orb.castShadow = true;
+    scene.add(orb);
+  }
+
+  // --- Photo-of-the-day on the central plinth ---
+  // Seeded by date so every day shows a different photo, but the same photo
+  // twice on the same day. Alena notices different things on different days.
+  buildPhotoOfTheDay(room);
+}
+
+function buildPhotoOfTheDay(room) {
+  if (!CFG.exhibits.length) return;
+  // Day-of-year hash → deterministic pick
+  const d = new Date();
+  const day = Math.floor(
+    (d - new Date(d.getFullYear(), 0, 0)) / 86400000
+  );
+  const pick = CFG.exhibits[day % CFG.exhibits.length];
+
+  // Tall plinth in the middle of the foyer, facing spawn (-Z).
+  const px = 0, pz = room.zStart + 2.8;
+  const plinthMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5 });
+  const brassMat = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.28, metalness: 0.85 });
+
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.1, 0.55), plinthMat);
+  shaft.position.set(px, 0.55, pz);
+  shaft.castShadow = true; shaft.receiveShadow = true;
+  scene.add(shaft);
+  addCollision(px, pz, 0.65, 0.65);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.7), brassMat);
+  cap.position.set(px, 1.11, pz);
+  scene.add(cap);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.7), brassMat);
+  base.position.set(px, 0.025, pz);
+  scene.add(base);
+
+  // Photo panel: tall portrait, faces spawn (-Z).
+  const panelH = 1.0, panelW = 0.75;
+  const matteMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e3c5, roughness: 0.9,
+    emissive: 0xf0e3c5, emissiveIntensity: 0.18,
+  });
+  const photoMat = new THREE.MeshStandardMaterial({
+    color: 0xc9b896, roughness: 0.9,
+    emissive: 0xffffff, emissiveIntensity: 0.45,
+  });
+  const matte = new THREE.Mesh(new THREE.PlaneGeometry(panelW + 0.1, panelH + 0.1), matteMat);
+  matte.position.set(px, 1.65, pz - 0.055);
+  matte.rotation.y = Math.PI;
+  scene.add(matte);
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW, panelH), photoMat);
+  panel.position.set(px, 1.65, pz - 0.05);
+  panel.rotation.y = Math.PI;
+  scene.add(panel);
+
+  // Extruded frame (uses the shared frame builder).
+  const frame = buildFrameMesh(panelW + 0.1, panelH + 0.1, { color: 0xc4a05a, metal: 0.85, rough: 0.25, molding: 0.06 });
+  frame.position.set(px, 1.65, pz - 0.02);
+  frame.rotation.y = Math.PI;
+  scene.add(frame);
+
+  // Small tilted plaque on the cap
+  const plaqueGroup = createWallPlaque('Today', pick.title || '—');
+  plaqueGroup.position.set(px, 1.14, pz - 0.28);
+  plaqueGroup.rotation.x = -Math.PI / 4;
+  plaqueGroup.rotation.y = Math.PI;
+  scene.add(plaqueGroup);
+
+  // Load the actual photo — use _origLoad so it doesn't double-count against
+  // LoadProgress (the plinth photo is also an exhibit; its real tick happens
+  // when placeExhibits loads that same src via the wrapped loader).
+  _origLoad(
+    (window.PHOTO_DATA && window.PHOTO_DATA[pick.src]) || pick.src,
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      photoMat.map = tex;
+      photoMat.emissiveMap = tex;
+      photoMat.color.set(0xffffff);
+      photoMat.needsUpdate = true;
+    },
+    undefined,
+    () => { /* fallback: stays cream */ }
+  );
+
+  // Register the plinth as interactable so tapping it opens the plaque for that day's photo.
+  const interactGeom = new THREE.PlaneGeometry(1.0, 1.4);
+  const invis = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const interact = new THREE.Mesh(interactGeom, invis);
+  interact.position.set(px, 1.5, pz - 0.1);
+  interact.rotation.y = Math.PI;
+  scene.add(interact);
+  interactables.push({
+    mesh: interact,
+    position: interact.position.clone(),
+    type: 'exhibit',
+    exhibit: pick,
+  });
+}
+
+function buildLetterRoom(room) {
+  // Large framed letter on back wall
+  const backZ = room.zEnd - 0.15;
+  const letterW = 4, letterH = 2.8;
+  // Frame
+  const fw = 0.15;
+  const frameGeom = new THREE.BoxGeometry(letterW + fw*2, letterH + fw*2, 0.08);
+  const frame = new THREE.Mesh(frameGeom, MAT.trim);
+  frame.position.set(0, 2.2, backZ);
+  scene.add(frame);
+  // Parchment canvas with letter text
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 720;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 720);
+  grad.addColorStop(0, '#f8f0da'); grad.addColorStop(1, '#e8d9b3');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 720);
+  // Aged specks
+  for (let i = 0; i < 80; i++) {
+    ctx.fillStyle = `rgba(120,90,50,${Math.random() * 0.08})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * 1024, Math.random() * 720, Math.random() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Text
+  ctx.fillStyle = '#2a2016';
+  ctx.font = 'italic 300 56px "Cormorant Garamond", serif';
+  ctx.fillText(`My ${CFG.visitorName},`, 70, 110);
+  ctx.font = '300 28px "Fraunces", serif';
+  const lines = wrapText(ctx, CFG.letter, 880);
+  let y = 180;
+  lines.forEach(line => { ctx.fillText(line, 70, y); y += 44; });
+  ctx.font = 'italic 300 36px "Cormorant Garamond", serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(CFG.signature, 950, y + 50);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  // Plane will be rotated 180° so its front face points -Z (toward visitor).
+  // Flip texture horizontally so text reads correctly after that rotation.
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.x = -1;
+  tex.offset.x = 1;
+  const letterMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, emissive: 0x221812, emissiveIntensity: 0.15 });
+  const letterGeom = new THREE.PlaneGeometry(letterW, letterH);
+  const letter = new THREE.Mesh(letterGeom, letterMat);
+  // Mount IN FRONT of the frame's front face so the brass frame acts as a lip around it
+  letter.position.set(0, 2.2, backZ - 0.045);
+  letter.rotation.y = Math.PI; // face -Z, toward the visitor
+  letter.userData.isLetter = true;
+  scene.add(letter);
+
+  // Dedicated spotlight for the letter
+  const spot = new THREE.SpotLight(0xffeacc, 8, 10, Math.PI / 6, 0.4, 1);
+  spot.position.set(0, 4, backZ - 2.2);
+  spot.target.position.set(0, 2.2, backZ);
+  spot.castShadow = true;
+  scene.add(spot); scene.add(spot.target);
+
+  // Invisible interactable plane in front of letter
+  const interactGeom = new THREE.PlaneGeometry(letterW, letterH);
+  const invisMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+  const interact = new THREE.Mesh(interactGeom, invisMat);
+  interact.position.set(0, 2.2, backZ - 0.06);
+  interact.userData.isLetterTrigger = true;
+  scene.add(interact);
+  interactables.push({
+    mesh: interact,
+    position: interact.position.clone(),
+    type: 'letter'
+  });
+
+  // Stars emissive ceiling
+  scene.add(new THREE.PointLight(0x4a5088, 0.3, 20));
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const out = [];
+  text.split('\n').forEach(para => {
+    if (!para.trim()) { out.push(''); return; }
+    const words = para.split(' ');
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        out.push(line); line = w;
+      } else { line = test; }
+    }
+    if (line) out.push(line);
+  });
+  return out;
+}
+
+function buildStandalonePlaque(title, body, x, y, z, rotY) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 320;
+  const ctx = c.getContext('2d');
+  // Brushed brass background
+  const g = ctx.createLinearGradient(0, 0, 512, 320);
+  g.addColorStop(0, '#d4b470'); g.addColorStop(0.5, '#c4a05a'); g.addColorStop(1, '#a88a4a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 320);
+  // Brushed texture
+  for (let i = 0; i < 200; i++) {
+    ctx.strokeStyle = `rgba(255,220,160,${Math.random() * 0.15})`;
+    ctx.beginPath();
+    const y = Math.random() * 320;
+    ctx.moveTo(0, y); ctx.lineTo(512, y + (Math.random() - 0.5) * 4);
+    ctx.stroke();
+  }
+  // Beveled edge
+  ctx.strokeStyle = '#8a6e38'; ctx.lineWidth = 4;
+  ctx.strokeRect(6, 6, 500, 308);
+  ctx.strokeStyle = '#e6c97c'; ctx.lineWidth = 1;
+  ctx.strokeRect(10, 10, 492, 300);
+  // Text
+  ctx.fillStyle = '#2a1f10';
+  ctx.font = '500 40px "Cormorant Garamond", serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, 256, 90);
+  // Divider
+  ctx.fillStyle = '#2a1f10';
+  ctx.fillRect(206, 110, 100, 2);
+  // Body
+  ctx.font = 'italic 300 22px "Fraunces", serif';
+  const lines = wrapText(ctx, body, 440);
+  let yy = 155;
+  lines.forEach(line => { ctx.fillText(line, 256, yy); yy += 32; });
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.25, metalness: 0.85 });
+  const geom = new THREE.PlaneGeometry(1.4, 0.875);
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = rotY;
+  scene.add(mesh);
+  return mesh;
+}
+
+// ---------------- Photo exhibits ----------------
+function placeExhibits() {
+  // Group exhibits by room
+  const byRoom = {};
+  CFG.exhibits.forEach(ex => {
+    (byRoom[ex.room] = byRoom[ex.room] || []).push(ex);
+  });
+
+  Object.entries(byRoom).forEach(([roomKey, exhibits]) => {
+    const room = ROOMS.find(r => r.key === roomKey);
+    if (!room) return;
+    // Split between left wall and right wall, alternating
+    const leftWall = [], rightWall = [];
+    exhibits.forEach((ex, i) => (i % 2 === 0 ? leftWall : rightWall).push(ex));
+    placeOnWall(leftWall, room, 'left');
+    placeOnWall(rightWall, room, 'right');
+  });
+}
+
+function placeOnWall(list, room, side) {
+  if (!list.length) return;
+  const halfW = room.w / 2;
+  const x = side === 'left' ? -halfW + 0.15 : halfW - 0.15;
+  const normal = side === 'left' ? 1 : -1; // +x for left wall facing right, -x for right wall
+  const rotY = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
+  // Leave margin from door openings
+  const margin = 1.5;
+  const usable = room.d - margin * 2;
+  const spacing = usable / list.length;
+  list.forEach((ex, i) => {
+    const z = room.zStart + margin + spacing * (i + 0.5);
+    createExhibit(ex, x, 2.0, z, rotY, normal);
+  });
+}
+
+const loader = new THREE.TextureLoader();
+loader.crossOrigin = 'anonymous';
+
+// ---------------- Real loading progress (gold-stroked cartouche) ----------------
+// Declared here, BEFORE placeExhibits() so the loader.load wrap is installed
+// before any photo-fetch fires. The intro screen is gated on both texture
+// count AND the first render — see `LoadProgress.markFrame` below.
+const LoadProgress = (() => {
+  const total = CFG.exhibits.length || 1;
+  let done = 0;
+  let firstFrameRendered = false;
+  const fill = document.getElementById('load-fill');
+  const count = document.getElementById('load-count');
+  function update() {
+    const pct = Math.min(100, Math.round((done / total) * 100));
+    if (fill)  fill.style.width = pct + '%';
+    if (count) count.textContent = pct + '%';
+    if (done >= total && firstFrameRendered) finish();
+  }
+  function tick() { done++; update(); }
+  function markFrame() { firstFrameRendered = true; update(); }
+  function finish() {
+    const loading = document.getElementById('loading');
+    if (!loading || loading.dataset.done) return;
+    loading.dataset.done = '1';
+    loading.style.opacity = '0';
+    setTimeout(() => {
+      loading.style.display = 'none';
+      document.getElementById('intro').classList.add('show');
+    }, 900);
+  }
+  // Hard timeout — never leave Alena stuck on the loading screen.
+  setTimeout(() => { firstFrameRendered = true; done = total; update(); }, 12000);
+  return { tick, markFrame };
+})();
+
+// Wrap TextureLoader.load so every texture resolution updates progress.
+// Canvas textures (flags, plaques, medallions) do NOT go through this path —
+// only real photo loads do, which is exactly what matters.
+const _origLoad = loader.load.bind(loader);
+loader.load = function(url, onLoad, onProgress, onError) {
+  return _origLoad(
+    url,
+    (tex) => { LoadProgress.tick(); onLoad && onLoad(tex); },
+    onProgress,
+    (err) => { LoadProgress.tick(); onError && onError(err); },
+  );
+};
+
+// ---- 3D extruded frame (ExtrudeGeometry from a beveled 2D shape) ----
+// Returns a group that always faces +Z (local). Caller rotates to the wall.
+function buildFrameMesh(innerW, innerH, opts = {}) {
+  const molding = opts.molding ?? 0.07;   // how thick the frame is in X/Y
+  const depth   = opts.depth   ?? 0.05;   // how far it sits off the wall
+  const color   = opts.color   ?? 0x4a3526;
+  const metal   = opts.metal   ?? 0.1;
+  const rough   = opts.rough   ?? 0.55;
+
+  // Outer rectangle with a rectangular hole in the middle → beveled molding.
+  const outer = new THREE.Shape();
+  const ow = innerW + molding * 2, oh = innerH + molding * 2;
+  outer.moveTo(-ow/2, -oh/2);
+  outer.lineTo( ow/2, -oh/2);
+  outer.lineTo( ow/2,  oh/2);
+  outer.lineTo(-ow/2,  oh/2);
+  outer.lineTo(-ow/2, -oh/2);
+  const hole = new THREE.Path();
+  hole.moveTo(-innerW/2, -innerH/2);
+  hole.lineTo( innerW/2, -innerH/2);
+  hole.lineTo( innerW/2,  innerH/2);
+  hole.lineTo(-innerW/2,  innerH/2);
+  hole.lineTo(-innerW/2, -innerH/2);
+  outer.holes.push(hole);
+
+  const geom = new THREE.ExtrudeGeometry(outer, {
+    depth: depth, bevelEnabled: true,
+    bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2,
+  });
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  return mesh;
+}
+
+function createExhibit(ex, x, y, z, rotY, normal) {
+  const maxW = 1.7, maxH = 2.0;
+  // Default aspect until loaded
+  let frameW = 1.2, frameH = 1.5;
+
+  // Per-country frame character: Japan thin gold, China black lacquer, etc.
+  // `room` resolves via the lookup, defaulting to matte dark wood for Travels.
+  const FRAME_THEMES = {
+    japan:     { color: 0x3a2a1d, metal: 0.0, rough: 0.8, molding: 0.07 },  // dark lacquered wood
+    china:     { color: 0x2a0808, metal: 0.15, rough: 0.45, molding: 0.09 }, // deep red lacquer
+    korea:     { color: 0x5a3a22, metal: 0.05, rough: 0.6, molding: 0.07 },
+    "south-korea": { color: 0x5a3a22, metal: 0.05, rough: 0.6, molding: 0.07 },
+    taiwan:    { color: 0x6a4520, metal: 0.1, rough: 0.55, molding: 0.07 },
+    thailand:  { color: 0xc4a05a, metal: 0.6, rough: 0.35, molding: 0.08 },  // gold leaf
+    singapore: { color: 0x6a5540, metal: 0.25, rough: 0.45, molding: 0.07 },
+    vietnam:   { color: 0x3a2618, metal: 0.0, rough: 0.75, molding: 0.07 },
+    israel:    { color: 0x4a4038, metal: 0.3, rough: 0.4,  molding: 0.07 },  // Jerusalem bronze
+    foyer:     { color: 0xc4a05a, metal: 0.7, rough: 0.28, molding: 0.08 },  // brass
+    unknown:   { color: 0x4a3526, metal: 0.1, rough: 0.55, molding: 0.07 },
+  };
+  const theme = FRAME_THEMES[ex.room] || FRAME_THEMES.unknown;
+
+  // Build frame + canvas pieces first with placeholder
+  const group = new THREE.Group();
+  group.position.set(x, y, z);
+  group.rotation.y = rotY;
+  scene.add(group);
+
+  // Matte board (ivory cream, 4 cm step beyond the photo on each side)
+  const MATTE_MARGIN = 0.04;
+  const matteMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e3c5, roughness: 0.9, metalness: 0,
+    emissive: 0xf0e3c5, emissiveIntensity: 0.12,
+  });
+  const matteMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(frameW + MATTE_MARGIN * 2, frameH + MATTE_MARGIN * 2),
+    matteMat,
+  );
+  matteMesh.position.set(0, 0, 0.045);
+  group.add(matteMesh);
+
+  // Backing (canvas) — self-glows strongly so photos read from across the room
+  const canvasMat = new THREE.MeshStandardMaterial({
+    color: 0xc9b896, roughness: 0.9,
+    emissive: 0xffffff, emissiveIntensity: 0.45
+  });
+  const canvasMesh = new THREE.Mesh(new THREE.PlaneGeometry(frameW, frameH), canvasMat);
+  canvasMesh.position.set(0, 0, 0.055);
+  group.add(canvasMesh);
+
+  // Extruded frame around the matte.
+  let frameMesh = null;
+  function rebuildFrame(w, h) {
+    if (frameMesh) { group.remove(frameMesh); frameMesh.geometry.dispose(); }
+    const mw = w + MATTE_MARGIN * 2, mh = h + MATTE_MARGIN * 2;
+    frameMesh = buildFrameMesh(mw, mh, theme);
+    frameMesh.position.z = 0.0;
+    group.add(frameMesh);
+    // Resize the matte + canvas planes to match.
+    matteMesh.geometry.dispose();
+    matteMesh.geometry = new THREE.PlaneGeometry(mw, mh);
+    canvasMesh.geometry.dispose();
+    canvasMesh.geometry = new THREE.PlaneGeometry(w, h);
+    canvasMesh.position.z = 0.062;
+    matteMesh.position.z = 0.055;
+  }
+  rebuildFrame(frameW, frameH);
+
+  // Plaque below frame
+  const plaqueGroup = createWallPlaque(ex.title, ex.date);
+  plaqueGroup.position.set(0, -frameH/2 - 0.3, 0.06);
+  group.add(plaqueGroup);
+
+  // Accent spotlight on the painting — bright warm highlight on top of the bright room
+  const spot = new THREE.SpotLight(0xfff0d0, 11, 10, Math.PI / 5, 0.55, 1);
+  spot.position.set(x + normal * 1.1, WALL_H - 0.3, z);
+  spot.target.position.set(x, y, z);
+  spot.castShadow = true;
+  spot.shadow.mapSize.width = 512;
+  spot.shadow.mapSize.height = 512;
+  spot.shadow.bias = -0.001;
+  scene.add(spot); scene.add(spot.target);
+
+  // Invisible interaction box
+  const interactGeom = new THREE.PlaneGeometry(maxW + 0.4, maxH + 0.8);
+  const invisMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const interact = new THREE.Mesh(interactGeom, invisMat);
+  interact.position.copy(group.position);
+  interact.position.x += normal * 0.1;
+  interact.rotation.y = rotY;
+  scene.add(interact);
+
+  interactables.push({
+    mesh: interact,
+    position: interact.position.clone(),
+    type: 'exhibit',
+    exhibit: ex
+  });
+
+  // Load photo
+  if (ex.src) {
+    loader.load(
+      ex.src,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        // IMPORTANT: disable mipmaps. Non-power-of-two photos silently fail to generate a
+        // complete mipmap chain, and the GPU falls back to the lowest level at distance —
+        // which appears BLACK. LinearFilter without mipmaps keeps photos readable everywhere.
+        tex.generateMipmaps = false;
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        const aspect = tex.image.width / tex.image.height;
+        let w, h;
+        if (aspect >= 1) { w = maxW; h = maxW / aspect; }
+        else { h = maxH; w = maxH * aspect; }
+        if (h > maxH) { h = maxH; w = maxH * aspect; }
+        if (w > maxW) { w = maxW; h = maxW / aspect; }
+        canvasMat.map = tex;
+        canvasMat.emissiveMap = tex;
+        canvasMat.color.set(0xffffff);
+        canvasMat.needsUpdate = true;
+        rebuildFrame(w, h);
+        plaqueGroup.position.y = -h/2 - 0.3;
+      },
+      undefined,
+      (err) => {
+        // Failed to load — likely viewing without the photos/ folder accessible (file:// CORS or preview mode).
+        // Draw an elegant readable placeholder instead of a black void.
+        console.warn('Could not load image:', ex.src);
+        const c = document.createElement('canvas'); c.width = 600; c.height = 800;
+        const cx = c.getContext('2d');
+        const g = cx.createLinearGradient(0, 0, 0, 800);
+        g.addColorStop(0, '#9b8460'); g.addColorStop(1, '#6f5a3c');
+        cx.fillStyle = g; cx.fillRect(0, 0, 600, 800);
+        // Subtle grain so it doesn't look flat
+        for (let i = 0; i < 1400; i++) {
+          cx.fillStyle = `rgba(255,240,210,${Math.random() * 0.06})`;
+          cx.fillRect(Math.random() * 600, Math.random() * 800, 1, 1);
+        }
+        // Inner hairline frame
+        cx.strokeStyle = 'rgba(255,240,210,0.35)'; cx.lineWidth = 2;
+        cx.strokeRect(24, 24, 552, 752);
+        // Centered text
+        cx.fillStyle = 'rgba(40,28,16,0.85)';
+        cx.textAlign = 'center';
+        cx.font = 'italic 400 44px "Cormorant Garamond", serif';
+        cx.fillText('photograph', 300, 380);
+        cx.fillText('to be hung', 300, 430);
+        cx.font = '300 16px "DM Sans", sans-serif';
+        cx.fillStyle = 'rgba(40,28,16,0.5)';
+        cx.fillText('(serve via http to load)', 300, 480);
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        canvasMat.map = tex;
+        canvasMat.color.set(0xffffff);
+        canvasMat.needsUpdate = true;
+      }
+    );
+  }
+}
+
+function createWallPlaque(title, date) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 512, 128);
+  g.addColorStop(0, '#d4b470'); g.addColorStop(0.5, '#c4a05a'); g.addColorStop(1, '#a88a4a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 128);
+  for (let i = 0; i < 80; i++) {
+    ctx.strokeStyle = `rgba(255,220,160,${Math.random() * 0.15})`;
+    ctx.beginPath();
+    const y = Math.random() * 128;
+    ctx.moveTo(0, y); ctx.lineTo(512, y + (Math.random() - 0.5) * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#8a6e38'; ctx.lineWidth = 3;
+  ctx.strokeRect(4, 4, 504, 120);
+  ctx.fillStyle = '#2a1f10';
+  ctx.font = '500 36px "Cormorant Garamond", serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, 256, 55);
+  ctx.fillStyle = '#4a3a20';
+  ctx.font = 'italic 300 20px "Fraunces", serif';
+  ctx.fillText(date || '', 256, 92);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  // Same mipmap fix as the photos — 512×128 is non-power-of-two height, mipmaps silently
+  // fail and the plaque turns into a black rectangle at distance. LinearFilter keeps it crisp.
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 16;
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.55, metalness: 0.2,
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.35
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), mat);
+  const group = new THREE.Group();
+  group.add(mesh);
+  return group;
+}
+
+// ---------------- Build everything ----------------
+ROOMS.forEach((room, i) => {
+  buildRoom(room, i > 0 ? ROOMS[i-1] : null, i < ROOMS.length - 1 ? ROOMS[i+1] : null);
+});
+placeExhibits();
+
+// Luxury classical gallery lighting — BRIGHT. Daniel wants no darkness, only gentle shadows.
+scene.add(new THREE.AmbientLight(0xfff1d8, 1.2));
+scene.add(new THREE.HemisphereLight(0xfff1d8, 0x6a5344, 0.85));
+const sun = new THREE.DirectionalLight(0xfff1d8, 0.7);
+sun.position.set(8, 20, -5);
+scene.add(sun);
+
+// Dust motes — floating particles in each room
+function makeDustMotes(roomZCenter) {
+  const count = 60;
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 8;
+    pos[i*3+1] = Math.random() * 3 + 0.5;
+    pos[i*3+2] = roomZCenter + (Math.random() - 0.5) * 6;
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xffeacc, size: 0.02, transparent: true, opacity: 0.5,
+    depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending
+  });
+  const pts = new THREE.Points(geom, mat);
+  pts.userData.baseY = Array.from(pos).filter((_, i) => i % 3 === 1);
+  scene.add(pts);
+  return pts;
+}
+// (Dust motes removed — they rendered as hard square point-sprites on mobile and looked cheap.
+// Real museums use clean air, not sparkle particles.)
+const dustSystems = [];
+
+// ---------------- Controls ----------------
+const controls = new PointerLockControls(camera, renderer.domElement);
+scene.add(controls.getObject());
+// Face into the museum (+Z direction) — default Three.js camera faces -Z
+controls.getObject().rotation.y = Math.PI;
+controls.getObject().position.set(0, 1.65, 2);
+
+const move = { forward: false, backward: false, left: false, right: false };
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+
+document.addEventListener('keydown', (e) => {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp': move.forward = true; break;
+    case 'KeyS': case 'ArrowDown': move.backward = true; break;
+    case 'KeyA': case 'ArrowLeft': move.left = true; break;
+    case 'KeyD': case 'ArrowRight': move.right = true; break;
+    case 'KeyE': case 'Space':
+      if (currentFocus) activateFocus();
+      break;
+    case 'Escape':
+      closePlaque(); closeLetter();
+      break;
+  }
+});
+document.addEventListener('keyup', (e) => {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp': move.forward = false; break;
+    case 'KeyS': case 'ArrowDown': move.backward = false; break;
+    case 'KeyA': case 'ArrowLeft': move.left = false; break;
+    case 'KeyD': case 'ArrowRight': move.right = false; break;
+  }
+});
+
+// ---------------- Mobile touch controls ----------------
+const isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+const joystick = document.getElementById('joystick');
+const joyKnob = joystick.querySelector('.knob');
+let joyActive = false, joyOriginX = 0, joyOriginY = 0, joyVX = 0, joyVY = 0;
+
+if (isTouch) {
+  document.querySelectorAll('#intro .controls-hint .desktop').forEach(e => e.style.display = 'none');
+  document.querySelectorAll('#intro .controls-hint .mobile').forEach(e => e.style.display = 'inline');
+  // Track joystick and look touches by ID independently — previous code cleared joyActive on ANY touchend.
+  let joyTouchId = null, lookTouchId = null;
+  let lookLastX = 0, lookLastY = 0;
+  const LOOK_SENS_X = 0.0035;   // horizontal yaw sensitivity
+  const LOOK_SENS_Y = 0.0022;   // vertical pitch — intentionally lower; vertical drift is what Daniel complained about
+  const PITCH_CLAMP = 0.7;      // radians — keep view near-horizontal, no ceiling/floor staring
+
+  document.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyTouchId) {
+        // Joystick update
+        const dx = t.clientX - joyOriginX;
+        const dy = t.clientY - joyOriginY;
+        const dist = Math.min(Math.hypot(dx, dy), 50);
+        const ang = Math.atan2(dy, dx);
+        const kx = Math.cos(ang) * dist, ky = Math.sin(ang) * dist;
+        joyKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+        joyVX = kx / 50; joyVY = ky / 50;
+      } else if (t.identifier === lookTouchId) {
+        // Look update — YAW ONLY (no pitch, no roll). Deliberately simple for non-gamers.
+        // Setting camera.rotation.x directly with default Euler order caused roll to creep in;
+        // locking pitch to 0 eliminates the "diagonal head" problem entirely.
+        const dx = t.clientX - lookLastX;
+        controls.getObject().rotation.y -= dx * LOOK_SENS_X;
+        camera.rotation.x = 0;
+        camera.rotation.z = 0;
+        lookLastX = t.clientX; lookLastY = t.clientY;
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchstart', (e) => {
+    const rect = joystick.getBoundingClientRect();
+    for (const t of e.changedTouches) {
+      const inJoy = t.clientX >= rect.left - 40 && t.clientX <= rect.right + 40 &&
+                    t.clientY >= rect.top - 40 && t.clientY <= rect.bottom + 40;
+      if (inJoy && joyTouchId === null) {
+        joyTouchId = t.identifier;
+        joyActive = true;
+        joyOriginX = rect.left + rect.width/2;
+        joyOriginY = rect.top + rect.height/2;
+      } else if (!inJoy && lookTouchId === null && t.clientX > window.innerWidth * 0.35) {
+        lookTouchId = t.identifier;
+        lookLastX = t.clientX;
+        lookLastY = t.clientY;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyTouchId) {
+        joyTouchId = null;
+        joyActive = false; joyVX = 0; joyVY = 0;
+        joyKnob.style.transform = 'translate(0, 0)';
+      }
+      if (t.identifier === lookTouchId) {
+        lookTouchId = null;
+      }
+    }
+  });
+  document.addEventListener('touchcancel', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyTouchId) {
+        joyTouchId = null;
+        joyActive = false; joyVX = 0; joyVY = 0;
+        joyKnob.style.transform = 'translate(0, 0)';
+      }
+      if (t.identifier === lookTouchId) lookTouchId = null;
+    }
+  });
+  document.getElementById('mobile-interact').addEventListener('click', () => {
+    if (currentFocus) activateFocus();
+  });
+}
+
+// ---------------- Collision-aware movement ----------------
+function tryMoveTo(nx, nz) {
+  const pad = 0.35;
+  for (const box of collisionBoxes) {
+    if (nx > box.minX - pad && nx < box.maxX + pad &&
+        nz > box.minZ - pad && nz < box.maxZ + pad) return false;
+  }
+  return true;
+}
+
+// ---------------- Interaction detection ----------------
+let currentFocus = null;
+const raycaster = new THREE.Raycaster();
+
+function updateFocus() {
+  const obj = controls.getObject();
+  const camPos = new THREE.Vector3(); camera.getWorldPosition(camPos);
+  let bestDist = Infinity, best = null;
+  for (const it of interactables) {
+    const d = camPos.distanceTo(it.position);
+    if (d < 3.5 && d < bestDist) {
+      // Also check we're roughly facing it
+      const toIt = it.position.clone().sub(camPos).normalize();
+      const fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      const dot = fwd.dot(toIt);
+      if (dot > 0.5) { bestDist = d; best = it; }
+    }
+  }
+  currentFocus = best;
+  const cross = document.getElementById('crosshair');
+  const prompt = document.getElementById('interact-prompt');
+  const mobileBtn = document.getElementById('mobile-interact');
+  if (currentFocus) {
+    cross.classList.add('active');
+    prompt.classList.add('show');
+    if (isTouch) mobileBtn.classList.add('show');
+    const label = currentFocus.type === 'letter' ? 'Read the letter' : 'Read plaque';
+    document.getElementById('prompt-label').textContent = label;
+    if (isTouch) mobileBtn.textContent = currentFocus.type === 'letter' ? 'Read Letter' : 'Read Plaque';
+  } else {
+    cross.classList.remove('active');
+    prompt.classList.remove('show');
+    if (isTouch) mobileBtn.classList.remove('show');
+  }
+}
+
+function activateFocus() {
+  if (!currentFocus) return;
+  if (currentFocus.type === 'letter') {
+    openLetter();
+  } else {
+    openPlaque(currentFocus.exhibit);
+  }
+}
+
+// ---------------- Plaque & letter UI ----------------
+const plaqueReader = document.getElementById('plaque-reader');
+// Roman numeral helper (up to 30, enough for any museum)
+const ROMAN_NUMERALS = ['', 'I','II','III','IV','V','VI','VII','VIII','IX','X',
+                        'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX',
+                        'XXI','XXII','XXIII','XXIV','XXV','XXVI','XXVII','XXVIII','XXIX','XXX'];
+const toRoman = (n) => ROMAN_NUMERALS[n] || String(n);
+
+function openPlaque(ex) {
+  // Catalog number — exhibit's 1-based index "III · VIII" (of total)
+  const idx = CFG.exhibits.findIndex(e => e === ex) + 1;
+  const total = CFG.exhibits.length;
+  const catalogEl = document.getElementById('p-catalog');
+  if (catalogEl) catalogEl.textContent = `${toRoman(idx)} · ${toRoman(total)}`;
+  document.getElementById('p-title').textContent = ex.title;
+  document.getElementById('p-date').textContent = ex.date || '';
+  document.getElementById('p-body').textContent = ex.plaque;
+  plaqueReader.classList.add('show');
+  if (controls.isLocked) controls.unlock();
+  // Record visit in progress so minimap dots / welcome-back text stay honest.
+  Progress.mark(ex);
+  // Haptic tick — subtle; opt-out handled by the OS-level preference.
+  if (navigator.vibrate) navigator.vibrate(20);
+  // Also lift the photo: an over-the-shoulder zoom that complements the plaque.
+  // CSS animates scale + fade, so we just swap the src + toggle .show.
+  const zoom = document.getElementById('photo-zoom');
+  const img  = document.getElementById('photo-zoom-img');
+  if (zoom && img && ex.src) {
+    const data = (window.PHOTO_DATA && window.PHOTO_DATA[ex.src]) || ex.src;
+    img.src = data;
+    zoom.classList.add('show');
+  }
+}
+function closePlaque() {
+  plaqueReader.classList.remove('show');
+  document.getElementById('photo-zoom')?.classList.remove('show');
+  if (!isTouch) setTimeout(() => controls.lock(), 300);
+}
+document.getElementById('close-plaque').addEventListener('click', closePlaque);
+plaqueReader.addEventListener('click', (e) => { if (e.target === plaqueReader) closePlaque(); });
+document.getElementById('photo-zoom').addEventListener('click', closePlaque);
+
+const letterOverlay = document.getElementById('letter-overlay');
+function openLetter() {
+  letterOverlay.classList.add('show');
+  if (controls.isLocked) controls.unlock();
+}
+function closeLetter() {
+  letterOverlay.classList.remove('show');
+  if (!isTouch) setTimeout(() => controls.lock(), 300);
+}
+document.getElementById('close-letter').addEventListener('click', closeLetter);
+
+// ---------------- Current room tracking ----------------
+function currentRoom() {
+  const z = camera.position.z;
+  return ROOMS.find(r => z >= r.zStart && z <= r.zEnd) || ROOMS[0];
+}
+
+// ---------------- Progress (rooms visited, exhibits read, guestbook) ----------------
+// All local-only. No server, no telemetry. If localStorage is unavailable
+// (private mode / disabled), silently degrade to an in-memory object.
+const Progress = (() => {
+  const KEY = "mm.progress";
+  let state;
+  try {
+    state = JSON.parse(localStorage.getItem(KEY) || "null") || { rooms: {}, exhibits: {}, guestbook: "" };
+  } catch { state = { rooms: {}, exhibits: {}, guestbook: "" }; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  return {
+    visit(roomKey) { if (!state.rooms[roomKey]) { state.rooms[roomKey] = Date.now(); save(); } },
+    mark(ex)       { if (ex && ex.src && !state.exhibits[ex.src]) { state.exhibits[ex.src] = Date.now(); save(); } },
+    setGuestbook(s){ state.guestbook = s; save(); },
+    state: () => state,
+    wasReturning: () => Object.keys(state.rooms).length > 1,
+  };
+})();
+
+// ---------------- Language toggle (native script ↔ English on HUD/chapter) ----------------
+const Lang = (() => {
+  let mode = localStorage.getItem("mm.lang") || "english";
+  const listeners = [];
+  return {
+    get mode() { return mode; },
+    toggle() {
+      mode = mode === "english" ? "native" : "english";
+      localStorage.setItem("mm.lang", mode);
+      listeners.forEach(fn => fn(mode));
+      return mode;
+    },
+    subscribe(fn) { listeners.push(fn); fn(mode); },
+  };
+})();
+
+// ---------------- Minimap (one dot per room, current one highlighted) ----------------
+const MinimapUI = (() => {
+  const el = document.getElementById('minimap');
+  const dots = [];
+  ROOMS.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.title = r.name;
+    el.appendChild(d);
+    dots.push(d);
+  });
+  let fadeTimer = null;
+  function setCurrent(idx) {
+    dots.forEach((d, i) => {
+      d.classList.toggle('current', i === idx);
+      if (Progress.state().rooms[ROOMS[i].key]) d.classList.add('visited');
+    });
+    // Surface it for a few seconds of non-movement, then fade to a hint.
+    el.classList.remove('fade');
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => el.classList.add('fade'), 5000);
+  }
+  function show() { el.classList.add('show'); }
+  return { setCurrent, show };
+})();
+
+// Chapter-title overlay: plays briefly when the visitor first enters a country room
+let lastRoomKey = null;
+let chapterHideTimer = null;
+const chapterOverlay = document.getElementById('chapter-overlay');
+const chapterNative = chapterOverlay.querySelector('.chapter-native');
+const chapterName = chapterOverlay.querySelector('.chapter-name');
+function maybeShowChapter(room) {
+  if (!room || room.key === lastRoomKey) return;
+  lastRoomKey = room.key;
+  Progress.visit(room.key);
+  MinimapUI.setCurrent(ROOMS.indexOf(room));
+  // Start / crossfade the ambient music patch for this room (silence in the letter room).
+  AudioManager.enter(room.key);
+  if (room.tone !== "country" || !room.country) return;
+  // Populate (language-aware: English name OR native script dominant)
+  if (Lang.mode === "native") {
+    chapterNative.textContent = room.country.native;
+    chapterName.textContent = room.country.english;
+  } else {
+    chapterNative.textContent = room.country.english;
+    chapterName.textContent = room.country.native;
+  }
+  chapterNative.style.color = "#" + room.country.primary.toString(16).padStart(6, '0');
+  chapterName.style.color = "#" + room.country.accent.toString(16).padStart(6, '0');
+  // Show (respect reduced motion — no blur-in if the user prefers)
+  chapterOverlay.classList.add('show');
+  clearTimeout(chapterHideTimer);
+  chapterHideTimer = setTimeout(() => chapterOverlay.classList.remove('show'), 2200);
+}
+
+// ---------------- Ambient audio (procedural, per-country) ----------------
+// We synthesize room ambience in-browser via Web Audio. No bytes shipped;
+// nothing to license. Each country has its own scale + timbre. Crossfades
+// via per-room gain nodes when the visitor changes rooms.
+//
+// Design: one PATCH per country. A patch is a small closure that, when
+// called, schedules notes within a 16-second loop. Patches share a single
+// AudioContext + master gain so volume is a single slider.
+const AudioManager = (() => {
+  let ctx = null, master = null, started = false;
+  const roomGains = {};      // roomKey → GainNode
+  const roomLoops = {};      // roomKey → interval id
+  const PATCH_BY_KEY = {};   // country key → patch fn
+  let currentRoom = null;
+  let enabled = localStorage.getItem("mm.music") !== "0";
+
+  function ensureCtx() {
+    if (ctx) return ctx;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0.35;
+    master.connect(ctx.destination);
+    return ctx;
+  }
+
+  // ---- Voice primitives ----
+  function pluck(freq, when, dur = 2.0, tone = 0.3, gain = 0.15) {
+    // A simple plucked-string via exponential-decayed sine + a touch of filter.
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    o.frequency.value = freq;
+    o.type = "triangle";
+    f.type = "lowpass"; f.frequency.value = 800 + tone * 2000;
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(gain, when + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(f); f.connect(g); g.connect(roomGains[currentRoom] || master);
+    o.start(when); o.stop(when + dur + 0.05);
+  }
+
+  function bellTone(freq, when, dur = 4.0, gain = 0.12) {
+    // Fundamental + shimmery overtone.
+    pluck(freq, when, dur, 0.5, gain);
+    pluck(freq * 2.01, when + 0.02, dur * 0.7, 0.6, gain * 0.35);
+  }
+
+  function breath(when, dur = 6.0, gain = 0.04) {
+    // Filtered noise — gentle "air in the room".
+    const bufSz = ctx.sampleRate * dur;
+    const buf = ctx.createBuffer(1, bufSz, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSz; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 400;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(gain, when + 1.5);
+    g.gain.linearRampToValueAtTime(0.0001, when + dur);
+    src.connect(f); f.connect(g); g.connect(roomGains[currentRoom] || master);
+    src.start(when); src.stop(when + dur + 0.1);
+  }
+
+  // ---- Scales ----
+  const MIDI = n => 440 * Math.pow(2, (n - 69) / 12);
+  const JP_YONAKUMI  = [62, 67, 69, 72, 74, 76];   // D E A F#? Actually Japanese koto pentatonic approximation
+  const CN_PENTA     = [60, 62, 64, 67, 69, 72, 74];
+  const KR_PENTA     = [57, 62, 64, 67, 69];
+  const TH_MAJ       = [60, 62, 64, 67, 69, 72];
+  const VN_PENTA     = [60, 63, 65, 67, 70];
+  const IL_MINOR     = [60, 62, 63, 67, 68, 70];   // Phrygian-ish
+  const WEST_MAJ     = [60, 62, 64, 65, 67, 69, 71, 72];
+
+  // ---- Patches ----
+  // Each patch schedules one "bar" (~8s) then the manager reschedules on a timer.
+  PATCH_BY_KEY.japan = (t0) => {
+    // Sparse koto-like pentatonic plucks, clean, contemplative.
+    breath(t0, 9, 0.03);
+    const scale = JP_YONAKUMI;
+    for (let i = 0; i < 7; i++) {
+      const n = scale[Math.floor(Math.random() * scale.length)] + (Math.random() < 0.2 ? 12 : 0);
+      pluck(MIDI(n), t0 + i * 1.1, 2.4, 0.3, 0.13);
+    }
+  };
+  PATCH_BY_KEY.china = (t0) => {
+    // Guzheng-style: ringing fifths + occasional high harmonic.
+    breath(t0, 9, 0.03);
+    for (let i = 0; i < 5; i++) {
+      const root = CN_PENTA[Math.floor(Math.random() * CN_PENTA.length)];
+      pluck(MIDI(root), t0 + i * 1.5, 3.2, 0.2, 0.11);
+      if (Math.random() < 0.5) pluck(MIDI(root + 7), t0 + i * 1.5 + 0.3, 2.8, 0.35, 0.08);
+    }
+  };
+  PATCH_BY_KEY.korea = (t0) => {
+    // Gayageum-style: slower, legato overlapping pentatonic.
+    breath(t0, 9, 0.04);
+    const scale = KR_PENTA;
+    for (let i = 0; i < 4; i++) {
+      const n = scale[Math.floor(Math.random() * scale.length)];
+      pluck(MIDI(n), t0 + i * 2.0, 3.8, 0.25, 0.10);
+    }
+  };
+  PATCH_BY_KEY["south-korea"] = PATCH_BY_KEY.korea;
+  PATCH_BY_KEY.taiwan = PATCH_BY_KEY.china;
+  PATCH_BY_KEY.thailand = (t0) => {
+    breath(t0, 9, 0.03);
+    for (let i = 0; i < 6; i++) {
+      const n = TH_MAJ[Math.floor(Math.random() * TH_MAJ.length)];
+      bellTone(MIDI(n), t0 + i * 1.3, 3.0, 0.08);
+    }
+  };
+  PATCH_BY_KEY.singapore = PATCH_BY_KEY.thailand;
+  PATCH_BY_KEY.vietnam = (t0) => {
+    breath(t0, 9, 0.03);
+    for (let i = 0; i < 6; i++) {
+      const n = VN_PENTA[Math.floor(Math.random() * VN_PENTA.length)];
+      pluck(MIDI(n), t0 + i * 1.25, 2.6, 0.3, 0.11);
+    }
+  };
+  PATCH_BY_KEY.israel = (t0) => {
+    breath(t0, 10, 0.04);
+    // Oud-ish microphrases in minor/phrygian
+    const scale = IL_MINOR;
+    for (let i = 0; i < 5; i++) {
+      const n = scale[Math.floor(Math.random() * scale.length)];
+      pluck(MIDI(n), t0 + i * 1.6, 3.2, 0.2, 0.10);
+      if (Math.random() < 0.4) pluck(MIDI(n - 5), t0 + i * 1.6 + 0.35, 2.8, 0.2, 0.07);
+    }
+  };
+  PATCH_BY_KEY.foyer = (t0) => {
+    // Satie-style: slow piano thirds, major-ish.
+    breath(t0, 10, 0.03);
+    for (let i = 0; i < 4; i++) {
+      const root = WEST_MAJ[Math.floor(Math.random() * WEST_MAJ.length)];
+      pluck(MIDI(root),     t0 + i * 2.1, 3.5, 0.15, 0.10);
+      pluck(MIDI(root + 4), t0 + i * 2.1 + 0.05, 3.5, 0.15, 0.08);
+    }
+  };
+  PATCH_BY_KEY.letter = null;  // silence in the letter room — silence has weight here.
+  PATCH_BY_KEY.unknown = PATCH_BY_KEY.foyer;
+
+  function ensureRoomGain(key) {
+    if (roomGains[key]) return roomGains[key];
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    g.connect(master);
+    roomGains[key] = g;
+    return g;
+  }
+
+  function schedulePatch(key) {
+    const patch = PATCH_BY_KEY[key] || PATCH_BY_KEY.foyer;
+    if (!patch) return;
+    patch(ctx.currentTime + 0.05);
+    roomLoops[key] = setTimeout(() => schedulePatch(key), 8000);
+  }
+
+  function crossfade(toKey) {
+    if (!ctx || currentRoom === toKey) return;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const fadeMs = reduce ? 200 : 2000;
+    const prev = currentRoom;
+    currentRoom = toKey;
+
+    if (prev && roomGains[prev]) {
+      const g = roomGains[prev].gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.linearRampToValueAtTime(0, ctx.currentTime + fadeMs / 1000);
+      // Stop scheduling new notes for the leaving room.
+      clearTimeout(roomLoops[prev]);
+    }
+    if (!enabled) return;
+
+    const g = ensureRoomGain(toKey);
+    g.gain.cancelScheduledValues(ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.9, ctx.currentTime + fadeMs / 1000);
+    schedulePatch(toKey);
+  }
+
+  function start(initialKey) {
+    if (started) return;
+    started = true;
+    ensureCtx();
+    crossfade(initialKey);
+  }
+
+  function enter(key) {
+    if (!started && enabled) start(key);
+    else crossfade(key);
+  }
+
+  function toggle() {
+    enabled = !enabled;
+    localStorage.setItem("mm.music", enabled ? "1" : "0");
+    if (ctx) {
+      if (enabled) {
+        const k = currentRoom || "foyer";
+        const g = ensureRoomGain(k);
+        g.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 1.0);
+        schedulePatch(k);
+      } else {
+        Object.keys(roomGains).forEach(k => {
+          roomGains[k].gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
+          clearTimeout(roomLoops[k]);
+        });
+      }
+    }
+    return enabled;
+  }
+
+  function pause() {
+    if (ctx && ctx.state === "running") ctx.suspend();
+  }
+  function resume() {
+    if (ctx && ctx.state === "suspended") ctx.resume();
+  }
+
+  return { start, enter, toggle, pause, resume,
+           get enabled() { return enabled; },
+           get started() { return started; } };
+})();
+
+const musicBtn = document.getElementById('music-toggle');
+musicBtn.addEventListener('click', () => {
+  const on = AudioManager.toggle();
+  musicBtn.classList.toggle('playing', on);
+});
+
+// ---------------- Main loop ----------------
+let last = performance.now();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  // Movement
+  velocity.x -= velocity.x * 10 * dt;
+  velocity.z -= velocity.z * 10 * dt;
+  direction.z = Number(move.forward) - Number(move.backward);
+  direction.x = Number(move.right) - Number(move.left);
+  direction.normalize();
+  const speed = 28;
+  if (move.forward || move.backward) velocity.z -= direction.z * speed * dt;
+  if (move.left || move.right) velocity.x -= direction.x * speed * dt;
+  if (isTouch && (joyVX || joyVY)) {
+    velocity.x -= joyVX * speed * dt * 0.7;   // joystick left (joyVX<0) → velocity.x positive → moveRight(neg) → left
+    velocity.z -= (-joyVY) * speed * dt * 0.7; // joystick up (joyVY<0) → velocity.z negative → moveForward(pos) → forward
+  }
+
+  if (controls.isLocked || isTouch) {
+    const obj = controls.getObject();
+
+    // Forward/backward movement with collision rollback
+    const beforeX = obj.position.x, beforeZ = obj.position.z;
+    controls.moveForward(-velocity.z * dt);
+    if (!tryMoveTo(obj.position.x, obj.position.z)) {
+      obj.position.x = beforeX; obj.position.z = beforeZ;
+    }
+    // Left/right strafe with collision rollback
+    const afterX = obj.position.x, afterZ = obj.position.z;
+    controls.moveRight(-velocity.x * dt);
+    if (!tryMoveTo(obj.position.x, obj.position.z)) {
+      obj.position.x = afterX; obj.position.z = afterZ;
+    }
+
+    // Clamp to museum bounds (z-axis travel corridor)
+    obj.position.z = Math.max(0.4, Math.min(MUSEUM_LENGTH - 0.4, obj.position.z));
+    obj.position.y = 1.65;
+  }
+
+  // Update HUD with current room (numeral, eyebrow, name)
+  const room = currentRoom();
+  const nameEl = document.getElementById('room-name');
+  if (nameEl.textContent !== room.name) {
+    nameEl.textContent = room.name;
+    // Roman numeral = 1-based room index
+    const roomIdx = ROOMS.indexOf(room) + 1;
+    const numEl = document.getElementById('room-numeral');
+    if (numEl) numEl.textContent = toRoman(roomIdx);
+    // Eyebrow label varies by room type
+    const eyebrowEl = document.getElementById('room-eyebrow');
+    if (eyebrowEl) {
+      let label = 'Room';
+      if (room.tone === 'country')      label = 'Gallery';
+      else if (room.key === 'foyer')    label = 'Entrance';
+      else if (room.key === 'letter')   label = 'Epilogue';
+      eyebrowEl.textContent = label;
+    }
+  }
+  maybeShowChapter(room);
+
+  // Dust motes drift
+  dustSystems.forEach(pts => {
+    const pos = pts.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) + Math.sin(now * 0.0003 + i) * 0.0008 + 0.0005;
+      pos.setY(i, y > 3.8 ? 0.4 : y);
+    }
+    pos.needsUpdate = true;
+  });
+
+  updateFocus();
+  renderer.render(scene, camera);
+}
+
+// ---------------- Intro & entry flow ----------------
+function startMuseum() {
+  document.getElementById('intro').classList.remove('show');
+  document.getElementById('hud').classList.add('show');
+  document.getElementById('crosshair').classList.add('show');
+  document.getElementById('control-strip').classList.add('show');
+  MinimapUI.show();
+  if (isTouch) document.getElementById('joystick').classList.add('show');
+  else controls.lock();
+  // Kick the audio context — must be after a tap or browsers reject it.
+  if (AudioManager.enabled) {
+    AudioManager.start(currentRoom().key);
+    musicBtn.classList.add('playing');
+  }
+  // Soft "welcome back" if Alena has been here before.
+  if (Progress.wasReturning()) {
+    const eyebrow = document.getElementById('room-eyebrow');
+    if (eyebrow) { eyebrow.textContent = 'Welcome back'; setTimeout(() => { /* next render restores */ }, 1400); }
+  }
+}
+
+document.getElementById('enter-btn').addEventListener('click', startMuseum);
+
+// ---------------- Pause button (blur the scene; she can put it away anytime) ----------------
+const PauseUI = (() => {
+  const overlay = document.getElementById('pause-overlay');
+  const btn = document.getElementById('pause-btn');
+  const resume = document.getElementById('pause-resume');
+  let paused = false;
+  function open() {
+    paused = true;
+    overlay.classList.add('show');
+    AudioManager.pause();
+    if (controls.isLocked) controls.unlock();
+  }
+  function close() {
+    paused = false;
+    overlay.classList.remove('show');
+    AudioManager.resume();
+    if (!isTouch) setTimeout(() => controls.lock(), 200);
+  }
+  btn.addEventListener('click', open);
+  resume.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  return { get paused() { return paused; }, open, close };
+})();
+
+// ---------------- Language toggle wiring ----------------
+document.getElementById('lang-btn').addEventListener('click', () => {
+  Lang.toggle();
+  // Re-flash the current room's chapter overlay so the change is felt, not just read.
+  lastRoomKey = null;
+  maybeShowChapter(currentRoom());
+});
+
+// ---------------- Guestbook (trigger once in letter room, persist locally) ----------------
+const GuestbookUI = (() => {
+  const overlay = document.getElementById('guestbook');
+  const input = document.getElementById('gb-input');
+  const copy = document.getElementById('gb-copy');
+  const close = document.getElementById('gb-close');
+  const status = document.getElementById('gb-status');
+  let shownOnce = false;
+  input.value = Progress.state().guestbook || '';
+  input.addEventListener('input', () => Progress.setGuestbook(input.value));
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(input.value || ''); status.textContent = 'Copied.'; }
+    catch { status.textContent = 'Could not copy — long-press the text and copy manually.'; }
+  });
+  close.addEventListener('click', () => overlay.classList.remove('show'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('show'); });
+  return {
+    openIfFirstLetterVisit() {
+      if (shownOnce) return;
+      shownOnce = true;
+      setTimeout(() => overlay.classList.add('show'), 400);
+    },
+  };
+})();
+
+// Pop the guestbook after she opens the letter.
+document.getElementById('close-letter').addEventListener('click', () => {
+  GuestbookUI.openIfFirstLetterVisit();
+});
+
+// ---------------- Visibility-based render pause (battery kindness) ----------------
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) AudioManager.pause();
+  else if (!PauseUI.paused) AudioManager.resume();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+
+// Mark the first rendered frame — pairs with LoadProgress (declared early, near `loader`).
+// Once both the textures are in AND the scene has drawn at least once, we
+// hide the loading screen. The rAF wrap fires exactly once.
+let _markedFrame = false;
+(function wrapRAF() {
+  const orig = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(cb) {
+    return orig.call(window, (t) => {
+      cb(t);
+      if (!_markedFrame) { _markedFrame = true; LoadProgress.markFrame(); }
+    });
+  };
+})();
+</script>
+</body>
+</html>
