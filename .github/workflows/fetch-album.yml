@@ -13,6 +13,10 @@ on:
         description: 'Google Photos shared album URL (e.g. https://photos.app.goo.gl/xxxxx)'
         required: true
         default: 'https://photos.app.goo.gl/RHDkpM7ZZsc5zyGw5'
+      max_photos:
+        description: 'Max number of photos to fetch (0 = all; default 100)'
+        required: false
+        default: '100'
       size:
         description: 'Requested photo size (longest edge in px)'
         required: false
@@ -56,12 +60,13 @@ jobs:
       - name: Install three.js (for bundling)
         run: npm install three@0.161.0
 
-      - name: Fetch all photos from album
+      - name: Fetch photos from album
         run: |
           python3 fetch_all_photos.py \
             "${{ github.event.inputs.album_url }}" \
             --size "${{ github.event.inputs.size }}" \
             --concurrency "${{ github.event.inputs.concurrency }}" \
+            --max-photos "${{ github.event.inputs.max_photos }}" \
             --max-minutes 25
 
       - name: Show fetch result

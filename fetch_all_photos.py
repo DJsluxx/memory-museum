@@ -95,12 +95,16 @@ def extract_gpid(raw: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", tail)[-80:] or "unknown"
 
 
-async def scroll_until_stable(page: Page, max_minutes: int) -> int:
+async def scroll_until_stable(page: Page, max_minutes: int, target: int = 0) -> int:
     """Scroll the album until the photo count stops growing.
 
     Google Photos sometimes uses an inner scroll container. We scroll BOTH the
     window and the widest scrollable child until no new `googleusercontent`
     URLs appear for three consecutive 1.2s idle cycles.
+
+    If `target` > 0, stop early once that many photos are visible — useful
+    when the caller only wants a subset, since scrolling to the bottom of a
+    huge album otherwise wastes minutes.
     """
     deadline = time.time() + max_minutes * 60
     prev_count = 0
@@ -108,6 +112,9 @@ async def scroll_until_stable(page: Page, max_minutes: int) -> int:
     step = 0
 
     while time.time() < deadline:
+        if target > 0 and prev_count >= target:
+            log(f"  target of {target} photos reached — stopping scroll early")
+            break
         step += 1
         # Scroll both window and the largest scrollable element.
         await page.evaluate(
@@ -209,7 +216,7 @@ async def download_one(
     return gpid, "fail:retries"
 
 
-async def run(album_url: str, out: Path, concurrency: int, max_minutes: int, size: int, headed: bool) -> int:
+async def run(album_url: str, out: Path, concurrency: int, max_minutes: int, size: int, headed: bool, max_photos: int = 0) -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     async with async_playwright() as p:
@@ -234,7 +241,10 @@ async def run(album_url: str, out: Path, concurrency: int, max_minutes: int, siz
         except Exception:
             pass
 
-        total = await scroll_until_stable(page, max_minutes)
+        # Ask the scroller to aim for a little extra — the grid count includes
+        # thumbnail-quality URLs we may de-dupe later, so overshoot by 20%.
+        scroll_target = int(max_photos * 1.2) if max_photos > 0 else 0
+        total = await scroll_until_stable(page, max_minutes, target=scroll_target)
         if total == 0:
             stamp = time.strftime("%Y%m%d-%H%M%S")
             await page.screenshot(path=f"fetch-debug-{stamp}.png", full_page=True)
@@ -244,6 +254,9 @@ async def run(album_url: str, out: Path, concurrency: int, max_minutes: int, siz
 
         urls = await harvest_urls(page)
         log(f"\n✓ collected {len(urls)} unique photo URLs")
+        if max_photos > 0 and len(urls) > max_photos:
+            log(f"  capping at first {max_photos} photos (--max-photos)")
+            urls = urls[:max_photos]
         Path("fetched-photo-urls.txt").write_text("\n".join(urls) + "\n")
 
         await browser.close()
@@ -299,6 +312,8 @@ def main() -> None:
     ap.add_argument("--max-minutes", default=15, type=int)
     ap.add_argument("--size", default=2560, type=int)
     ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--max-photos", default=0, type=int,
+                    help="only download the first N photos (0 = unlimited)")
     args = ap.parse_args()
 
     code = asyncio.run(
@@ -309,6 +324,7 @@ def main() -> None:
             max_minutes=args.max_minutes,
             size=args.size,
             headed=args.headed,
+            max_photos=args.max_photos,
         )
     )
     sys.exit(code)
