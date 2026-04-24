@@ -56,13 +56,65 @@ def bundle_importmap() -> str:
     })
 
 
+def _placeholder_plaque(entry: dict) -> tuple[str, str, str]:
+    """Return (title, date, plaque) for a manifest entry without a user override.
+
+    The title and plaque here are intentionally restrained and honest: we don't
+    know what's in the photo, so we don't invent. A line about time-of-day +
+    country keeps the card from looking empty but avoids fake-specificity."""
+    country = entry.get("country") or "unknown"
+    iso = entry.get("timestamp") or ""
+    date_display = iso[:10] if len(iso) >= 10 else "—"
+
+    # Friendly country name for the title
+    country_name = {
+        "japan": "Japan", "china": "China", "south-korea": "Korea",
+        "korea": "Korea", "taiwan": "Taiwan", "thailand": "Thailand",
+        "singapore": "Singapore", "vietnam": "Vietnam", "israel": "Israel",
+        "uae": "UAE", "hong-kong": "Hong Kong", "india": "India",
+        "usa": "USA", "uk": "UK", "france": "France", "italy": "Italy",
+        "greece": "Greece", "spain": "Spain", "unknown": "Somewhere",
+        "cambodia": "Cambodia", "laos": "Laos", "malaysia": "Malaysia",
+        "indonesia": "Indonesia", "philippines": "Philippines",
+    }.get(country, country.title().replace("-", " "))
+
+    # Time-of-day hint if we can parse the hour
+    hour = None
+    if len(iso) >= 13:
+        try:
+            hour = int(iso[11:13])
+        except ValueError:
+            pass
+    if hour is None:
+        tod = ""
+    elif 5 <= hour < 11:
+        tod = "Morning. "
+    elif 11 <= hour < 14:
+        tod = "Midday. "
+    elif 14 <= hour < 17:
+        tod = "Afternoon. "
+    elif 17 <= hour < 20:
+        tod = "Early evening. "
+    elif 20 <= hour < 24:
+        tod = "After dark. "
+    else:
+        tod = "Late, or very early. "
+
+    title = f"{country_name} — a moment"
+    plaque = (
+        f"{tod}We were here. The specifics of this one haven't been written yet; "
+        f"the photograph has more to say than the caption does. Look at it."
+    )
+    return title, date_display, plaque
+
+
 def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> str:
     """Replace the `exhibits: [...]` literal with one built from the manifest.
 
     The manifest decides WHICH photos exist and in WHICH country each lives.
     `plaques.json` (optional) decides the title/date/plaque copy per photo.
-    Anything without a plaque override falls back to a voice-rule placeholder.
-    """
+    Anything without a plaque override falls back to a voice-rule placeholder
+    produced by _placeholder_plaque (country + time-of-day-aware)."""
     if not manifest_path.exists():
         print(f"  · no {manifest_path.name} — leaving exhibits block intact")
         return html
@@ -77,9 +129,10 @@ def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> s
         filename = m["filename"]
         country = m.get("country") or "unknown"
         overrides = plaques.get(filename, {})
-        title = overrides.get("title") or ""
-        date = overrides.get("date") or m.get("timestamp", "")[:10]
-        plaque = overrides.get("plaque") or ""
+        ph_title, ph_date, ph_plaque = _placeholder_plaque(m)
+        title = overrides.get("title") or ph_title
+        date = overrides.get("date") or ph_date
+        plaque = overrides.get("plaque") or ph_plaque
         entry = {
             "room": country,
             "src": f"photos/{filename}",
