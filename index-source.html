@@ -529,9 +529,15 @@
   #photo-zoom {
     position: fixed; inset: 0; z-index: 62; pointer-events: none;
     display: flex; align-items: center; justify-content: center; padding: 2rem;
-    background: rgba(6,4,3,0); transition: background 0.5s ease;
+    background: rgba(6,4,3,0);
+    opacity: 0; visibility: hidden;
+    transition: background 0.5s ease, opacity 0.5s ease, visibility 0s linear 0.5s;
   }
-  #photo-zoom.show { background: rgba(6,4,3,0.88); pointer-events: auto; }
+  #photo-zoom.show {
+    background: rgba(6,4,3,0.88); pointer-events: auto;
+    opacity: 1; visibility: visible;
+    transition: background 0.5s ease, opacity 0.5s ease, visibility 0s linear 0s;
+  }
   #photo-zoom img {
     max-width: 88vw; max-height: 78vh; object-fit: contain;
     box-shadow: 0 30px 60px rgba(0,0,0,0.7), 0 0 0 8px rgba(196,160,90,0.14), 0 0 0 1px var(--brass) inset;
@@ -2094,8 +2100,11 @@ function buildPhotoOfTheDay(room) {
   );
   const pick = CFG.exhibits[day % CFG.exhibits.length];
 
-  // Tall plinth in the middle of the foyer, facing spawn (-Z).
-  const px = 0, pz = room.zStart + 2.8;
+  // Plinth placed toward the back of the foyer so the camera spawn (at z≈2)
+  // sees it at a readable distance (~2.5m) rather than filling the view.
+  // Pz is foyer back wall minus ~2m so there's walking room behind the plinth
+  // before the doorway.
+  const px = 0, pz = room.zEnd - 2.4;
   const plinthMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5 });
   const brassMat = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.28, metalness: 0.85 });
 
@@ -2228,11 +2237,11 @@ function buildLetterRoom(room) {
   letter.userData.isLetter = true;
   scene.add(letter);
 
-  // Dedicated spotlight for the letter
+  // Dedicated spotlight for the letter — no shadow map (texture-unit budget).
   const spot = new THREE.SpotLight(0xffeacc, 8, 10, Math.PI / 6, 0.4, 1);
   spot.position.set(0, 4, backZ - 2.2);
   spot.target.position.set(0, 2.2, backZ);
-  spot.castShadow = true;
+  spot.castShadow = false;
   scene.add(spot); scene.add(spot.target);
 
   // Invisible interactable plane in front of letter
@@ -2506,15 +2515,12 @@ function createExhibit(ex, x, y, z, rotY, normal) {
   plaqueGroup.position.set(0, -frameH/2 - 0.3, 0.06);
   group.add(plaqueGroup);
 
-  // Accent spotlight on the painting — bright warm highlight on top of the bright room
-  const spot = new THREE.SpotLight(0xfff0d0, 11, 10, Math.PI / 5, 0.55, 1);
-  spot.position.set(x + normal * 1.1, WALL_H - 0.3, z);
-  spot.target.position.set(x, y, z);
-  spot.castShadow = true;
-  spot.shadow.mapSize.width = 512;
-  spot.shadow.mapSize.height = 512;
-  spot.shadow.bias = -0.001;
-  scene.add(spot); scene.add(spot.target);
+  // NOTE: per-painting SpotLights were removed. 30+ spots in one scene forced
+  // Three.js to compile enormous fragment shaders that exceed the
+  // MAX_TEXTURE_IMAGE_UNITS budget on mobile GPUs (hard fail: black scene).
+  // Paintings stay readable via strong emissive maps on the canvas material
+  // plus the bright global ambient + hemisphere + sun (decision #9).
+  // A subtle per-painting rim glow is achieved by the canvas' emissiveIntensity.
 
   // Invisible interaction box
   const interactGeom = new THREE.PlaneGeometry(maxW + 0.4, maxH + 0.8);
