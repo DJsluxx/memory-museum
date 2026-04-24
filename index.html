@@ -1736,6 +1736,729 @@ function buildCountryAccents(room) {
   scene.add(medSpot); scene.add(medSpot.target);
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Country decor — things that make each room feel like the country it is.
+// All primitives (cylinders, boxes, spheres, extruded shapes); no external
+// models. Decor sits at the edges of rooms so the walkable centerline and
+// doorways stay clear. Every mesh is purely visual — none are registered
+// as interactables or collision boxes unless they'd obstruct a path.
+// ────────────────────────────────────────────────────────────────────────
+
+const DECOR_BUILDERS = {};
+function buildCountryDecor(room) {
+  const fn = DECOR_BUILDERS[room.country?.flagFn] || DECOR_BUILDERS.default;
+  fn(room);
+}
+
+// ── Reusable primitives ────────────────────────────────────────────────
+function paperLantern(hex, size = 0.4) {
+  // Red/white cylinder with rounded ends. Emissive so it reads at distance
+  // without adding another light to the scene's shader budget.
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: hex, emissive: hex, emissiveIntensity: 0.55,
+    roughness: 0.7, metalness: 0,
+  });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(size, 18, 12), mat);
+  body.scale.set(1.0, 0.78, 1.0);
+  g.add(body);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x2a1f10, roughness: 0.6 });
+  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.55, size * 0.55, 0.04, 16), capMat);
+  capTop.position.y = size * 0.78 + 0.02; g.add(capTop);
+  const capBot = capTop.clone(); capBot.position.y = -size * 0.78 - 0.02; g.add(capBot);
+  // String from ceiling
+  const string = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 1.5, 6),
+                                new THREE.MeshBasicMaterial({ color: 0x1a1208 }));
+  string.position.y = size * 0.78 + 0.75;
+  g.add(string);
+  // Tassel
+  const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.03, 0.12, 8),
+                                new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.4, metalness: 0.6 }));
+  tassel.position.y = -size * 0.78 - 0.1;
+  g.add(tassel);
+  return g;
+}
+
+function tallPedestal(height = 0.85, radius = 0.26, color = 0xe8dcc0) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+  const cap = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.85 });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.05, height, 16), mat);
+  shaft.position.y = height / 2; shaft.castShadow = true; shaft.receiveShadow = true;
+  g.add(shaft);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.2, radius * 1.2, 0.04, 16), cap);
+  top.position.y = height; g.add(top);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.25, radius * 1.3, 0.05, 16), cap);
+  base.position.y = 0.025; g.add(base);
+  return g;
+}
+
+// ── "Us" — two stylized figures in the foyer ─────────────────────────
+// Low-poly, deliberately abstract. Not portraits — more like two standing
+// silhouettes on the medallion, waiting to walk the museum together.
+// Daniel: dark jacket, slightly taller. Alena: warm knit sweater, slightly
+// shorter. Their inside hands meet at ~0.9m (the classic holding-hands height).
+function buildUs(room) {
+  const { zCenter, zStart } = room;
+
+  // Place near the back of the foyer facing toward the Japan doorway (+Z),
+  // slightly to one side so the photo-of-the-day plinth stays hero-center.
+  const px = -1.4, pz = zCenter + 0.6;  // left side of the medallion
+  const facing = Math.PI; // face +Z (toward the next room)
+
+  const daniel = buildHumanFigure({
+    height: 1.78,
+    shirtColor: 0x2a3a55,    // deep navy jacket
+    pantsColor: 0x1a1a1c,
+    hairColor:  0x1a1208,
+    skinColor:  0xd9b38a,
+    hairStyle:  'short',
+  });
+  daniel.position.set(px + 0.22, 0, pz);
+  daniel.rotation.y = facing;
+  scene.add(daniel);
+
+  const alena = buildHumanFigure({
+    height: 1.68,
+    shirtColor: 0xc78b58,    // warm knit sweater
+    pantsColor: 0x8a7350,    // taupe skirt
+    hairColor:  0x1a0a06,
+    skinColor:  0xe6c9a5,
+    hairStyle:  'long',
+  });
+  alena.position.set(px - 0.22, 0, pz);
+  alena.rotation.y = facing;
+  scene.add(alena);
+
+  // Hand-holding bridge: tiny cylinder between their inner arms.
+  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xd9b38a, roughness: 0.8 });
+  const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.45, 8), bridgeMat);
+  bridge.rotation.z = Math.PI / 2;
+  bridge.position.set(px, 0.92, pz);
+  scene.add(bridge);
+
+  // Collision around them so Alena can walk up to but not through.
+  addCollision(px, pz, 0.9, 0.45);
+}
+
+function buildHumanFigure(opts) {
+  const { height, shirtColor, pantsColor, hairColor, skinColor, hairStyle } = opts;
+  const g = new THREE.Group();
+  const headR = 0.12;
+  const neckH = 0.08;
+  const shoulderW = 0.42;
+  const torsoH = height * 0.30;
+  const legH = height * 0.48;
+  const hipY = legH;
+  const torsoY = hipY + torsoH / 2;
+  const shoulderY = hipY + torsoH;
+  const headY = shoulderY + neckH + headR;
+
+  const shirt = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.7 });
+  const pants = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.75 });
+  const skin = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 });
+  const hair = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.55 });
+
+  // Legs (two cylinders)
+  for (const sign of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, legH, 12), pants);
+    leg.position.set(sign * 0.09, legH / 2, 0);
+    leg.castShadow = true; leg.receiveShadow = true;
+    g.add(leg);
+  }
+  // Shoes
+  for (const sign of [-1, 1]) {
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.05, 0.22),
+                                new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.6 }));
+    shoe.position.set(sign * 0.09, 0.025, 0.03);
+    g.add(shoe);
+  }
+  // Torso — tapered cylinder
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.15, torsoH, 14), shirt);
+  torso.position.y = torsoY;
+  torso.castShadow = true;
+  g.add(torso);
+  // Arms — slightly tapered, hanging down; inside arm (right arm for Daniel/
+  // left arm for Alena) bends forward to connect with the other's hand.
+  for (const sign of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.048, torsoH * 1.02, 10), shirt);
+    arm.position.set(sign * (shoulderW / 2), shoulderY - torsoH * 0.55, 0);
+    arm.castShadow = true;
+    g.add(arm);
+    // Hand — small sphere
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), skin);
+    hand.position.set(sign * (shoulderW / 2), shoulderY - torsoH * 1.06, 0);
+    g.add(hand);
+  }
+  // Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, neckH, 10), skin);
+  neck.position.y = shoulderY + neckH / 2;
+  g.add(neck);
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 16, 14), skin);
+  head.position.y = headY;
+  head.castShadow = true;
+  g.add(head);
+  // Eyes — two tiny dark spheres on the face's front (+Z)
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a120b });
+  for (const sign of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), eyeMat);
+    eye.position.set(sign * 0.035, headY + 0.015, headR * 0.85);
+    g.add(eye);
+  }
+  // Hair — a cap of spheres. Long hair adds a second flattened sphere behind
+  // the head to suggest length down to shoulder.
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.05, 14, 12), hair);
+  hairCap.position.y = headY + (hairStyle === 'short' ? 0.018 : 0.01);
+  hairCap.scale.set(1.0, 0.65, 1.0);
+  g.add(hairCap);
+  if (hairStyle === 'long') {
+    const hairBack = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.1, 12, 10), hair);
+    hairBack.position.set(0, headY - headR * 0.8, -headR * 0.2);
+    hairBack.scale.set(0.95, 1.5, 0.6);
+    g.add(hairBack);
+  }
+  return g;
+}
+
+// ── Japan: torii gate, stone lantern (tōrō), bonsai, cherry blossom ──
+function buildJapanDecor(room) {
+  const { zStart, zEnd, zCenter, w } = room;
+  const halfW = w / 2;
+
+  // ─ Torii gate at the entrance doorway (zStart). Red vermillion.
+  //   Two square pillars + curved upper lintel (kasagi) + cross beam (nuki).
+  //   Built 0.35 m inside the doorway so you walk under it.
+  const vermillion = new THREE.MeshStandardMaterial({
+    color: 0xbc002d, roughness: 0.55, metalness: 0.0,
+    emissive: 0x401010, emissiveIntensity: 0.12,
+  });
+  const torii = new THREE.Group();
+  const torZ = zStart + 0.35;
+  const doorH = DOOR_H;  // match doorway
+  const pillarH = doorH + 0.2;
+  // Pillars
+  for (const sign of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, pillarH, 0.22), vermillion);
+    p.position.set(sign * (DOOR_W / 2 + 0.25), pillarH / 2, torZ);
+    p.castShadow = true;
+    torii.add(p);
+  }
+  // Lower cross-beam (nuki)
+  const nuki = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 1.3, 0.16, 0.18), vermillion);
+  nuki.position.set(0, doorH - 0.3, torZ);
+  torii.add(nuki);
+  // Upper beam (kasagi) — curved feel via two stacked boxes
+  const shimaki = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 1.6, 0.2, 0.26), vermillion);
+  shimaki.position.set(0, pillarH + 0.1, torZ);
+  torii.add(shimaki);
+  const kasagi = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 1.9, 0.16, 0.32), vermillion);
+  kasagi.position.set(0, pillarH + 0.28, torZ);
+  torii.add(kasagi);
+  // Tiny upturned eaves on the kasagi
+  for (const sign of [-1, 1]) {
+    const eave = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.32), vermillion);
+    eave.position.set(sign * (DOOR_W / 2 + 1.0), pillarH + 0.42, torZ);
+    eave.rotation.z = sign * 0.25;
+    torii.add(eave);
+  }
+  scene.add(torii);
+  // Pillar collision so you can't walk INTO the gate posts
+  addCollision(-(DOOR_W / 2 + 0.25), torZ, 0.3, 0.3);
+  addCollision( (DOOR_W / 2 + 0.25), torZ, 0.3, 0.3);
+
+  // ─ Stone lantern (tōrō) in the left-back corner
+  const toro = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: 0x888178, roughness: 0.95 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.18, 16), stone);
+  base.position.y = 0.09; toro.add(base);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.55, 16), stone);
+  shaft.position.y = 0.47; toro.add(shaft);
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.1, 16), stone);
+  bowl.position.y = 0.78; toro.add(bowl);
+  const firehouse = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.24),
+    new THREE.MeshStandardMaterial({ color: 0x8a7a6a, emissive: 0xffc078, emissiveIntensity: 0.8, roughness: 0.8 }));
+  firehouse.position.y = 0.95; toro.add(firehouse);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.12, 4), stone);
+  roof.position.y = 1.12; roof.rotation.y = Math.PI / 4;
+  toro.add(roof);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), stone);
+  finial.position.y = 1.2; toro.add(finial);
+  toro.position.set(-halfW + 0.6, 0, zEnd - 1.1);
+  toro.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(toro);
+  addCollision(-halfW + 0.6, zEnd - 1.1, 0.6, 0.6);
+
+  // ─ Bonsai in a low ceramic pot on a plinth (right-back corner)
+  const bonsaiStand = tallPedestal(0.7, 0.25, 0xe8dcc0);
+  bonsaiStand.position.set(halfW - 0.6, 0, zEnd - 1.1);
+  scene.add(bonsaiStand);
+  addCollision(halfW - 0.6, zEnd - 1.1, 0.7, 0.7);
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.2, 0.13, 14),
+    new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.7 })
+  );
+  pot.position.set(halfW - 0.6, 0.77, zEnd - 1.1);
+  scene.add(pot);
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02, 0.035, 0.28, 8),
+    new THREE.MeshStandardMaterial({ color: 0x4a3522, roughness: 0.85 })
+  );
+  trunk.position.set(halfW - 0.6, 0.98, zEnd - 1.1);
+  scene.add(trunk);
+  // Leaf clusters (overlapping flattened spheres, slightly different greens)
+  const leafTones = [0x3a6a2d, 0x4f7d38, 0x2d5820];
+  leafTones.forEach((color, i) => {
+    const leaf = new THREE.Mesh(
+      new THREE.SphereGeometry(0.14 - i * 0.015, 14, 10),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
+    );
+    leaf.scale.set(1.3, 0.75, 1.3);
+    leaf.position.set(halfW - 0.6 + (i - 1) * 0.08, 1.15 + i * 0.03, zEnd - 1.1 + (i - 1) * 0.05);
+    scene.add(leaf);
+  });
+
+  // ─ Cherry blossom tree (sakura) — full-height, pink cloud of leaves —
+  //   along the opposite side wall, placed to be seen but not block the path.
+  const sakuraX = halfW - 0.7;
+  const sakuraZ = zStart + 2.0;
+  const sakuraTrunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.12, 1.6, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3a2516, roughness: 0.9 })
+  );
+  sakuraTrunk.position.set(sakuraX, 0.8, sakuraZ);
+  sakuraTrunk.castShadow = true;
+  scene.add(sakuraTrunk);
+  // Branches (thin cylinders fanning out)
+  const branchMat = new THREE.MeshStandardMaterial({ color: 0x3a2516, roughness: 0.9 });
+  [[-0.35, 0.6], [0.3, 0.5], [0.15, 0.75], [-0.2, 0.9]].forEach(([ax, ay]) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.55, 6), branchMat);
+    b.position.set(sakuraX + ax / 2, 1.5 + ay / 2, sakuraZ);
+    b.rotation.z = Math.atan2(ax, ay) * 0.9;
+    scene.add(b);
+  });
+  // Pink blossom clouds
+  const pinkTones = [0xf5c4d0, 0xe8a3b8, 0xf0b8c5];
+  for (let i = 0; i < 7; i++) {
+    const c = pinkTones[i % pinkTones.length];
+    const blossom = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3 + Math.random() * 0.15, 14, 10),
+      new THREE.MeshStandardMaterial({
+        color: c, emissive: c, emissiveIntensity: 0.2,
+        roughness: 0.85,
+      })
+    );
+    blossom.scale.set(1.1, 0.85, 1.1);
+    blossom.position.set(
+      sakuraX + (Math.random() - 0.5) * 0.8,
+      1.8 + Math.random() * 0.6,
+      sakuraZ + (Math.random() - 0.5) * 0.7,
+    );
+    scene.add(blossom);
+  }
+  addCollision(sakuraX, sakuraZ, 0.4, 0.4);
+}
+DECOR_BUILDERS.japan = buildJapanDecor;
+
+// ── China: guardian lions (shishi), red paper lanterns, calligraphy scroll ──
+function buildChinaDecor(room) {
+  const { zStart, zEnd, zCenter, w } = room;
+  const halfW = w / 2;
+
+  // ─ Pair of guardian lions flanking the entrance (zStart).
+  //   Stylized: stone cube body + sphere head + four small cube legs + tail curl.
+  //   Very low-poly — silhouette-based recognition, not photorealism.
+  function buildShishi(mirror) {
+    const g = new THREE.Group();
+    const stone = new THREE.MeshStandardMaterial({ color: 0x7a7568, roughness: 0.95 });
+    // Plinth
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.3, 0.8), stone);
+    plinth.position.y = 0.15; g.add(plinth);
+    // Body (rounded box via sphere-scaled)
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), stone);
+    body.scale.set(1.0, 0.85, 1.25);
+    body.position.y = 0.55; g.add(body);
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), stone);
+    head.scale.set(1.1, 1.0, 1.0);
+    head.position.set(0, 0.82, 0.32); g.add(head);
+    // Mane — many small spheres around the head
+    const maneMat = new THREE.MeshStandardMaterial({ color: 0x5a5248, roughness: 1.0 });
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), maneMat);
+      puff.position.set(Math.cos(a) * 0.24, 0.82 + Math.sin(a) * 0.18, 0.3);
+      g.add(puff);
+    }
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1208 });
+    for (const s of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), eyeMat);
+      eye.position.set(s * 0.07, 0.86, 0.51); g.add(eye);
+    }
+    // Paws (front)
+    for (const s of [-1, 1]) {
+      const paw = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.14), stone);
+      paw.position.set(s * 0.13, 0.45, 0.22); g.add(paw);
+    }
+    // Tail curl
+    const tail = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.04, 8, 16, Math.PI * 1.3), stone);
+    tail.rotation.x = Math.PI / 2;
+    tail.position.set(0, 0.7, -0.32); g.add(tail);
+    // Orb/cub under left paw (traditional: left lion holds an orb, right has cub)
+    if (mirror) {
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), stone);
+      orb.position.set(0.13, 0.38, 0.32);
+      g.add(orb);
+    }
+    if (mirror) g.scale.x = -1;  // face the other way
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
+  const lionZ = zStart + 1.1;
+  const lionX = 1.8;
+  const left = buildShishi(false);
+  left.position.set(-lionX, 0, lionZ);
+  left.rotation.y = Math.PI; // face into the room
+  scene.add(left);
+  addCollision(-lionX, lionZ, 0.8, 1.0);
+  const right = buildShishi(true);
+  right.position.set(lionX, 0, lionZ);
+  right.rotation.y = Math.PI;
+  scene.add(right);
+  addCollision(lionX, lionZ, 0.8, 1.0);
+
+  // ─ Red paper lanterns hanging from the ceiling, in a row down the
+  //   centerline near the back wall. Warm glow via emissive (no new lights).
+  const lanternCount = Math.min(5, Math.max(3, Math.floor((zEnd - zStart) / 2.2)));
+  const lanternStartZ = zStart + (zEnd - zStart) * 0.35;
+  const lanternEndZ = zEnd - 1.5;
+  for (let i = 0; i < lanternCount; i++) {
+    const t = lanternCount > 1 ? i / (lanternCount - 1) : 0.5;
+    const lz = lanternStartZ + (lanternEndZ - lanternStartZ) * t;
+    const lx = (i % 2 === 0 ? -1 : 1) * (halfW * 0.45);
+    const lan = paperLantern(0xd32020, 0.32);
+    lan.position.set(lx, WALL_H - 0.95, lz);
+    scene.add(lan);
+    // Thin gold tassel hanging below the lantern — hand-feels-festive touch
+  }
+
+  // ─ Hanging calligraphy scroll on the back wall.
+  //   Off-center so it doesn't conflict with the exhibit centerline.
+  const scrollW = 0.9, scrollH = 2.2;
+  const scrollCanvas = document.createElement('canvas');
+  scrollCanvas.width = 256; scrollCanvas.height = 640;
+  const sctx = scrollCanvas.getContext('2d');
+  sctx.fillStyle = '#f4ead5'; sctx.fillRect(0, 0, 256, 640);
+  // Aged paper speckles
+  for (let i = 0; i < 120; i++) {
+    sctx.fillStyle = `rgba(120,90,50,${Math.random() * 0.1})`;
+    sctx.beginPath();
+    sctx.arc(Math.random() * 256, Math.random() * 640, Math.random() * 2, 0, Math.PI * 2);
+    sctx.fill();
+  }
+  // Vertical calligraphy strokes — abstract, not actual Chinese characters
+  sctx.fillStyle = '#1a120b';
+  sctx.font = '600 64px "Cormorant Garamond", "Noto Sans SC", serif';
+  sctx.textAlign = 'center';
+  const glyphs = ["愛", "永", "遠", "我", "们"];  // "love forever us"
+  glyphs.forEach((g, i) => {
+    sctx.fillText(g, 128, 110 + i * 100);
+  });
+  // Red artist seal near the bottom
+  sctx.fillStyle = '#bc0010';
+  sctx.fillRect(90, 580, 44, 44);
+  sctx.fillStyle = '#f4ead5';
+  sctx.font = '600 24px "Noto Sans SC", serif';
+  sctx.fillText("玉", 112, 608);
+  const scrollTex = new THREE.CanvasTexture(scrollCanvas);
+  scrollTex.colorSpace = THREE.SRGBColorSpace;
+  scrollTex.generateMipmaps = false;
+  scrollTex.minFilter = THREE.LinearFilter;
+  scrollTex.magFilter = THREE.LinearFilter;
+  const scrollMat = new THREE.MeshStandardMaterial({
+    map: scrollTex, roughness: 0.85,
+    emissive: 0xffffff, emissiveMap: scrollTex, emissiveIntensity: 0.3,
+    side: THREE.DoubleSide,
+  });
+  const scrollGeom = new THREE.PlaneGeometry(scrollW, scrollH);
+  // UV flip because the plane will face inward (-side wall material)
+  const scrollUv = scrollGeom.attributes.uv;
+  for (let i = 0; i < scrollUv.count; i++) scrollUv.setX(i, 1 - scrollUv.getX(i));
+  scrollUv.needsUpdate = true;
+  const scroll = new THREE.Mesh(scrollGeom, scrollMat);
+  // Mount on LEFT wall, near the back
+  scroll.position.set(-halfW + 0.06, 2.0, zEnd - 2.0);
+  scroll.rotation.y = Math.PI / 2;
+  scene.add(scroll);
+  // Scroll rods (top + bottom dowels)
+  const rodMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.5 });
+  const rodTop = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, scrollW + 0.2, 12), rodMat);
+  rodTop.rotation.z = Math.PI / 2;
+  rodTop.position.set(-halfW + 0.08, 2.0 + scrollH / 2 + 0.03, zEnd - 2.0);
+  rodTop.rotation.y = Math.PI / 2;  // aligned along Z
+  scene.add(rodTop);
+}
+DECOR_BUILDERS.china = buildChinaDecor;
+
+// ── Korea: celadon vase on a pedestal, folding screen, hanji paper lantern ──
+function buildKoreaDecor(room) {
+  const { zStart, zEnd, zCenter, w } = room;
+  const halfW = w / 2;
+
+  // ─ Celadon vase (청자 maebyeong-style silhouette) on a wooden pedestal.
+  //   Back-right corner so it doesn't block the exhibit path.
+  const pedestal = tallPedestal(0.75, 0.28, 0xd3c4a4);
+  pedestal.position.set(halfW - 0.6, 0, zEnd - 1.0);
+  scene.add(pedestal);
+  addCollision(halfW - 0.6, zEnd - 1.0, 0.7, 0.7);
+
+  const celadon = new THREE.MeshStandardMaterial({
+    color: 0x7ea88a, roughness: 0.35, metalness: 0.0,
+    emissive: 0x2a4a3a, emissiveIntensity: 0.08,
+  });
+  const vase = new THREE.Group();
+  // Shoulder (widest part) + tapered belly + small neck — approximated by 3 stacked segments
+  const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.14, 0.28, 24), celadon);
+  belly.position.y = 0.14;
+  vase.add(belly);
+  const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.23, 20, 14), celadon);
+  shoulder.scale.set(1.0, 0.55, 1.0);
+  shoulder.position.y = 0.32;
+  vase.add(shoulder);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 0.08, 16), celadon);
+  neck.position.y = 0.42;
+  vase.add(neck);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 8, 20), celadon);
+  lip.rotation.x = Math.PI / 2;
+  lip.position.y = 0.46;
+  vase.add(lip);
+  vase.position.set(halfW - 0.6, 0.75, zEnd - 1.0);
+  vase.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(vase);
+
+  // ─ Folding screen (byeongpung) — 4-panel wall accent against the left
+  //   back wall. Each panel is a thin tall box with a subtle ink-painting canvas texture.
+  const screenCanvas = document.createElement('canvas');
+  screenCanvas.width = 256; screenCanvas.height = 768;
+  const sc = screenCanvas.getContext('2d');
+  const sg = sc.createLinearGradient(0, 0, 0, 768);
+  sg.addColorStop(0, '#e8dcc4');
+  sg.addColorStop(1, '#c9b690');
+  sc.fillStyle = sg; sc.fillRect(0, 0, 256, 768);
+  // Ink brush strokes — abstract mountain silhouette
+  sc.strokeStyle = 'rgba(40,35,28,0.55)';
+  sc.lineWidth = 2.5;
+  sc.beginPath();
+  sc.moveTo(20, 540);
+  sc.bezierCurveTo(60, 470, 90, 500, 130, 460);
+  sc.bezierCurveTo(170, 430, 200, 470, 236, 450);
+  sc.stroke();
+  // Pine tree silhouette left
+  sc.fillStyle = 'rgba(25,30,20,0.75)';
+  sc.beginPath();
+  sc.moveTo(60, 540);
+  sc.lineTo(55, 490); sc.lineTo(40, 490); sc.lineTo(58, 460);
+  sc.lineTo(48, 460); sc.lineTo(65, 430); sc.lineTo(55, 430);
+  sc.lineTo(70, 400); sc.lineTo(80, 430); sc.lineTo(70, 430);
+  sc.lineTo(85, 460); sc.lineTo(75, 460); sc.lineTo(92, 490);
+  sc.lineTo(77, 490); sc.lineTo(72, 540); sc.closePath();
+  sc.fill();
+  // A few crane silhouettes flying across top
+  for (let i = 0; i < 3; i++) {
+    sc.fillStyle = 'rgba(30,35,25,0.7)';
+    sc.beginPath();
+    const cy = 150 + i * 40;
+    const cx = 100 + i * 50;
+    sc.moveTo(cx, cy);
+    sc.quadraticCurveTo(cx - 15, cy - 10, cx - 25, cy);
+    sc.quadraticCurveTo(cx - 15, cy - 4, cx, cy);
+    sc.moveTo(cx, cy);
+    sc.quadraticCurveTo(cx + 15, cy - 10, cx + 25, cy);
+    sc.quadraticCurveTo(cx + 15, cy - 4, cx, cy);
+    sc.stroke();
+  }
+  const screenTex = new THREE.CanvasTexture(screenCanvas);
+  screenTex.colorSpace = THREE.SRGBColorSpace;
+  screenTex.generateMipmaps = false;
+  screenTex.minFilter = THREE.LinearFilter;
+  screenTex.magFilter = THREE.LinearFilter;
+  const screenMat = new THREE.MeshStandardMaterial({
+    map: screenTex, roughness: 0.85,
+    emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.18,
+    side: THREE.DoubleSide,
+  });
+  const panelW = 0.5, panelH = 1.9, panelD = 0.04;
+  const screen = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(panelW, panelH, panelD), screenMat);
+    // Zig-zag the panels to suggest a folded screen
+    const zz = (i % 2 === 0 ? 0 : 0.08);
+    p.position.set(i * panelW - 1.5 * panelW / 2, 0, zz);
+    p.rotation.y = (i % 2 === 0 ? 0.15 : -0.15);
+    p.castShadow = true;
+    screen.add(p);
+    // Dark frame trim on each panel
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.6 });
+    const ft = new THREE.Mesh(new THREE.BoxGeometry(panelW + 0.03, 0.04, 0.06), frameMat);
+    ft.position.set(i * panelW - 1.5 * panelW / 2, panelH / 2 + 0.02, zz);
+    ft.rotation.y = (i % 2 === 0 ? 0.15 : -0.15);
+    screen.add(ft);
+    const fb = ft.clone(); fb.position.y = -panelH / 2 - 0.02;
+    screen.add(fb);
+  }
+  screen.position.set(-halfW + 0.8, panelH / 2, zEnd - 1.2);
+  screen.rotation.y = Math.PI / 2;  // facing +X (into the room)
+  scene.add(screen);
+  addCollision(-halfW + 0.4, zEnd - 1.4, 0.9, 2.2);
+
+  // ─ Hanji paper lantern (soft white cube on a thin cord) near room front
+  const hanji = new THREE.Group();
+  const hanjiMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e6d2, emissive: 0xffd6a0, emissiveIntensity: 0.55,
+    roughness: 0.9, metalness: 0, transparent: false,
+  });
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.42, 0.3), hanjiMat);
+  hanji.add(cube);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.55 });
+  const capT = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.34), capMat);
+  capT.position.y = 0.22; hanji.add(capT);
+  const capB = capT.clone(); capB.position.y = -0.22; hanji.add(capB);
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1.0, 6),
+                              new THREE.MeshBasicMaterial({ color: 0x1a1208 }));
+  cord.position.y = 0.72; hanji.add(cord);
+  hanji.position.set(0, WALL_H - 1.35, zStart + 1.8);
+  scene.add(hanji);
+}
+DECOR_BUILDERS.korea = buildKoreaDecor;
+DECOR_BUILDERS["south-korea"] = buildKoreaDecor;
+
+// ── Generic country decor (used when no specific builder exists) ──
+// Three elements: a country-colored pedestal with an orb on top, a tall
+// banner hanging on the back wall, and a low plant in a corner. Visual
+// weight without making assumptions about the specific culture.
+function buildGenericCountryDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  const col = room.country?.primary || 0xc4a05a;
+  const accent = room.country?.accent || 0xe6c97c;
+
+  // Pedestal with colored orb
+  const ped = tallPedestal(0.8, 0.26);
+  ped.position.set(halfW - 0.6, 0, zEnd - 0.9);
+  scene.add(ped);
+  addCollision(halfW - 0.6, zEnd - 0.9, 0.7, 0.7);
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 20, 16),
+    new THREE.MeshStandardMaterial({
+      color: col, emissive: col, emissiveIntensity: 0.25,
+      roughness: 0.35, metalness: 0.5,
+    })
+  );
+  orb.position.set(halfW - 0.6, 1.02, zEnd - 0.9);
+  scene.add(orb);
+
+  // Low potted plant at the opposite back corner
+  const potMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.7 });
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.22, 14), potMat);
+  pot.position.set(-halfW + 0.55, 0.11, zEnd - 0.9);
+  scene.add(pot);
+  addCollision(-halfW + 0.55, zEnd - 0.9, 0.5, 0.5);
+  // Leaves — several flattened spheres
+  for (let i = 0; i < 4; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16 + Math.random() * 0.04, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0x3d6a2a, roughness: 0.85 })
+    );
+    leaf.scale.set(1.2, 0.5, 1.2);
+    leaf.position.set(
+      -halfW + 0.55 + (Math.random() - 0.5) * 0.2,
+      0.3 + i * 0.1, zEnd - 0.9 + (Math.random() - 0.5) * 0.2
+    );
+    scene.add(leaf);
+  }
+}
+// Apply the generic builder to any country we haven't given a specific one.
+// Specific builders above (japan/china/korea) take precedence.
+["taiwan","thailand","singapore","vietnam","israel","uae","banner",
+ "cambodia","laos","malaysia","indonesia","philippines","india",
+ "hong-kong","usa","uk","france","italy","greece","spain"].forEach(k => {
+  if (!DECOR_BUILDERS[k]) DECOR_BUILDERS[k] = buildGenericCountryDecor;
+});
+
+// ── Thailand: elephant silhouette + lotus (overrides the generic) ──
+function buildThailandDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  // Stylized low-poly elephant on a plinth — box body + tapered trunk
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x7a6a55, roughness: 0.9 });
+  const el = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.28), stoneMat);
+  body.position.y = 0.4; el.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.26), stoneMat);
+  head.position.set(0.33, 0.45, 0); el.add(head);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.35, 10), stoneMat);
+  trunk.position.set(0.48, 0.22, 0); trunk.rotation.z = -Math.PI / 4;
+  el.add(trunk);
+  for (const [lx, lz] of [[-0.22, -0.09], [-0.22, 0.09], [0.22, -0.09], [0.22, 0.09]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.08), stoneMat);
+    leg.position.set(lx, 0.15, lz);
+    el.add(leg);
+  }
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.8 }));
+  plinth.position.y = -0.06; el.add(plinth);
+  el.position.set(halfW - 0.85, 0.08, zEnd - 1.0);
+  el.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(el);
+  addCollision(halfW - 0.85, zEnd - 1.0, 1.0, 0.7);
+  // Lotus on the left
+  buildGenericCountryDecor(room);  // still add the plant/orb combo on the other side
+}
+DECOR_BUILDERS.thailand = buildThailandDecor;
+
+// ── Israel: olive tree + Jerusalem stone arch motif ──
+function buildIsraelDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  // Stone arch (purely decorative, hugs the back wall) — half-torus
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd6c49b, roughness: 0.9 });
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.12, 10, 20, Math.PI), stoneMat);
+  arch.position.set(0, 2.4, zEnd - 0.12);
+  arch.rotation.z = 0;
+  scene.add(arch);
+  // Two square pillars under the arch
+  for (const s of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.4, 0.22), stoneMat);
+    p.position.set(s * 0.8, 1.2, zEnd - 0.12);
+    scene.add(p);
+  }
+  // Olive tree in a corner — gnarly trunk + silver-green foliage
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.14, 1.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x5a4530, roughness: 0.95 })
+  );
+  trunk.position.set(-halfW + 0.7, 0.7, zEnd - 1.0);
+  scene.add(trunk);
+  addCollision(-halfW + 0.7, zEnd - 1.0, 0.4, 0.4);
+  for (let i = 0; i < 6; i++) {
+    const leaves = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28 - i * 0.02, 14, 10),
+      new THREE.MeshStandardMaterial({ color: 0x8a9b6a, roughness: 0.9 })
+    );
+    leaves.scale.set(1.1, 0.75, 1.1);
+    leaves.position.set(
+      -halfW + 0.7 + (Math.random() - 0.5) * 0.35,
+      1.45 + (Math.random() - 0.5) * 0.4,
+      zEnd - 1.0 + (Math.random() - 0.5) * 0.35,
+    );
+    scene.add(leaves);
+  }
+}
+DECOR_BUILDERS.israel = buildIsraelDecor;
+
+if (!DECOR_BUILDERS.default) DECOR_BUILDERS.default = buildGenericCountryDecor;
+
 function buildRoom(room, prevRoom, nextRoom) {
   const { w, d, zStart, zEnd, zCenter, tone } = room;
   const halfW = w / 2;
@@ -1885,6 +2608,13 @@ function buildRoom(room, prevRoom, nextRoom) {
       scene.add(leg);
     });
     addCollision(0, zCenter, 2, 0.5);
+  }
+
+  // Country-specific decor — torii gate for Japan, guardian lions for China,
+  // celadon vase for Korea, etc. Built after the bench so decor can place
+  // relative to it. Entirely additive to the scene; skipped for foyer/letter.
+  if (tone === "country") {
+    buildCountryDecor(room);
   }
 }
 
@@ -2040,6 +2770,7 @@ function buildFoyer(room) {
   // Seeded by date so every day shows a different photo, but the same photo
   // twice on the same day. Alena notices different things on different days.
   buildPhotoOfTheDay(room);
+  buildUs(room);  // the two figures, holding hands, waiting to walk it with her
 }
 
 function buildPhotoOfTheDay(room) {
