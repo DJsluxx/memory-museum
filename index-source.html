@@ -792,6 +792,13 @@ See you in the next room.`,
   // Leave null for silence.
   musicUrl: null,
 
+  // The photo to show on the foyer "today" plinth. Path is relative to the
+  // HTML; build.py will embed it as a base64 data URI even if it's not in
+  // photo-manifest.json.
+  featuredPhoto: "photos/today.jpg",
+  featuredTitle: "Today",
+  featuredCaption: "Liberty",
+
   // Each exhibit is a photo on the wall with a curator's plaque.
   // The "room" property assigns it to a gallery room.
   // Rooms: "beginnings", "journeys", "home", (room "foyer" and "letter" hold no photos)
@@ -1280,7 +1287,7 @@ const COUNTRY_THEMES = {
   italy:         { name: "Italy",          native: "Italia",     english: "ITALIA",         primary: 0x009246, secondary: 0xFFFFFF, accent: 0xCE2B37, flagFn: "banner",    floor: "marble" },
   greece:        { name: "Greece",         native: "Ελλάς",      english: "HELLAS",         primary: 0x0D5EAF, secondary: 0xFFFFFF, accent: 0x0D5EAF, flagFn: "banner",    floor: "marble" },
   spain:         { name: "Spain",          native: "España",     english: "ESPAÑA",         primary: 0xAA151B, secondary: 0xF1BF00, accent: 0xAA151B, flagFn: "banner",    floor: "terracotta" },
-  germany:       { name: "Germany",        native: "Deutschland",english: "GERMANY",        primary: 0x000000, secondary: 0xDD0000, accent: 0xFFCE00, flagFn: "germany",   floor: "stone" },
+  germany:       { name: "Germany",        native: "Deutschland",english: "GERMANY",        primary: 0xDD0000, secondary: 0xFFCE00, accent: 0xFFCE00, flagFn: "germany",   floor: "stone" },
   unknown:       { name: "Travels",        native: "✦",          english: "TRAVELS",        primary: 0xC4A05A, secondary: 0xF4EAD5, accent: 0xC4A05A, flagFn: "banner",    floor: "marble" },
 };
 
@@ -3495,9 +3502,9 @@ function buildRoom(room, prevRoom, nextRoom) {
   if (tone === "night") {
     wallMat = MAT.wallLetter;
   } else if (tone === "country") {
-    // Mix country primary with cream very strongly toward cream so the
-    // wall reads as "off-cream with a hint of country" — never colourful.
-    const tint = new THREE.Color(room.country.primary).lerp(new THREE.Color(0xf4ead5), 0.92);
+    // Mix country primary with cream toward cream so the wall reads as
+    // "warm-cream with a country whisper" — visible, never gaudy.
+    const tint = new THREE.Color(room.country.primary).lerp(new THREE.Color(0xf4ead5), 0.85);
     wallMat = new THREE.MeshStandardMaterial({
       map: wallTex, roughness: 0.92, color: tint,
       emissive: tint, emissiveIntensity: 0.18,
@@ -4010,15 +4017,21 @@ function buildHeroPeach(room) {
 }
 
 function buildPhotoOfTheDay(room) {
-  if (!CFG.exhibits.length) return;
-  // Pick a stable "us" portrait — config can override via featuredPhoto;
-  // otherwise we take the first exhibit (chronologically earliest), which
-  // is reliably us together at the start of every album.
-  let pick = null;
+  // Pick a stable "us" portrait. Priority:
+  //   1) CFG.featuredPhoto (path string) — does NOT need to be in exhibits
+  //   2) first exhibit (chronologically earliest)
+  // Falls back gracefully if neither is set; the panel just stays cream.
+  let pickSrc = null, pickTitle = '—', pickCaption = '';
   if (CFG.featuredPhoto) {
-    pick = CFG.exhibits.find(e => e.src === CFG.featuredPhoto || e.src.endsWith('/' + CFG.featuredPhoto));
+    pickSrc = CFG.featuredPhoto;
+    pickTitle = CFG.featuredTitle || 'Today';
+    pickCaption = CFG.featuredCaption || '';
+  } else if (CFG.exhibits.length) {
+    const e = CFG.exhibits[0];
+    pickSrc = e.src; pickTitle = e.title || 'Today'; pickCaption = e.date || '';
   }
-  if (!pick) pick = CFG.exhibits[0];
+  if (!pickSrc) return;
+  const pick = { src: pickSrc, title: pickTitle, date: pickCaption };
 
   // Plinth placed toward the back of the foyer so the camera spawn (at z≈2)
   // sees it at a readable distance (~2.5m) rather than filling the view.
