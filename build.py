@@ -262,8 +262,43 @@ def inject_importmap(html: str) -> str:
     return html
 
 
+def _shrink_jpeg_for_embed(fpath: Path, longest: int = 1600, quality: int = 78) -> bytes:
+    """Re-encode a photo to fit a longest-edge / quality budget for embedding.
+
+    Used to keep the inlined data-URI payload under the mobile budget. Falls
+    back to the raw bytes if Pillow is missing or the image is already small.
+    """
+    raw = fpath.read_bytes()
+    if len(raw) < 220 * 1024:
+        # Already small enough; don't recompress.
+        return raw
+    try:
+        from PIL import Image, ImageOps
+        from io import BytesIO
+        with Image.open(BytesIO(raw)) as img:
+            img = ImageOps.exif_transpose(img)
+            w, h = img.size
+            if max(w, h) > longest:
+                if w >= h:
+                    img = img.resize((longest, round(h * longest / w)), Image.LANCZOS)
+                else:
+                    img = img.resize((round(w * longest / h), longest), Image.LANCZOS)
+            img = img.convert("RGB")
+            buf = BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True, progressive=True)
+            shrunk = buf.getvalue()
+            return shrunk if len(shrunk) < len(raw) else raw
+    except Exception:
+        return raw
+
+
 def embed_photos(html: str) -> str:
-    """Inline every photos/*.jpg reference as a base64 data URI."""
+    """Inline every photos/*.jpg reference as a base64 data URI.
+
+    Each photo is shrunk to a 1600px longest-edge / q=78 JPEG before encoding
+    so the shipped HTML stays under the mobile-budget ceiling even with
+    70+ photos. The on-disk photos/ directory is untouched.
+    """
     refs = sorted(set(re.findall(r'photos/[\w\-]+\.(?:jpg|jpeg|png)', html)))
     if not refs:
         print("  · no photo references found — nothing to embed")
@@ -279,7 +314,11 @@ def embed_photos(html: str) -> str:
             missing.append(ref)
             continue
         mime = "image/jpeg" if fpath.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
-        b64 = base64.b64encode(fpath.read_bytes()).decode("ascii")
+        if fpath.suffix.lower() in {".jpg", ".jpeg"}:
+            data = _shrink_jpeg_for_embed(fpath)
+        else:
+            data = fpath.read_bytes()
+        b64 = base64.b64encode(data).decode("ascii")
         uri = f"data:{mime};base64,{b64}"
         entries.append(f'  {json.dumps(ref)}: {json.dumps(uri)},')
         total += len(uri)
@@ -289,11 +328,9 @@ def embed_photos(html: str) -> str:
             print(f"      {m}")
 
     block = "window.PHOTO_DATA = {\n" + "\n".join(entries) + "\n};\n"
-    # Remove any existing PHOTO_DATA block and prepend a fresh one.
     html = re.sub(r"window\.PHOTO_DATA\s*=\s*\{[\s\S]*?\n\};\n", "", html, count=1)
     html = html.replace('<script type="module">', '<script type="module">\n' + block, 1)
 
-    # Patch the TextureLoader call so it resolves photos through PHOTO_DATA.
     html = re.sub(
         r'loader\.load\(\s*ex\.src\s*,',
         'loader.load((window.PHOTO_DATA && window.PHOTO_DATA[ex.src]) || ex.src,',
