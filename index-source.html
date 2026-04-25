@@ -1195,7 +1195,7 @@ const COUNTRY_THEMES = {
   italy:         { name: "Italy",          native: "Italia",     english: "ITALIA",         primary: 0x009246, secondary: 0xFFFFFF, accent: 0xCE2B37, flagFn: "banner",    floor: "marble" },
   greece:        { name: "Greece",         native: "Ελλάς",      english: "HELLAS",         primary: 0x0D5EAF, secondary: 0xFFFFFF, accent: 0x0D5EAF, flagFn: "banner",    floor: "marble" },
   spain:         { name: "Spain",          native: "España",     english: "ESPAÑA",         primary: 0xAA151B, secondary: 0xF1BF00, accent: 0xAA151B, flagFn: "banner",    floor: "terracotta" },
-  germany:       { name: "Germany",        native: "Deutschland",english: "DEUTSCHLAND",    primary: 0x000000, secondary: 0xDD0000, accent: 0xFFCE00, flagFn: "banner",    floor: "stone" },
+  germany:       { name: "Germany",        native: "Deutschland",english: "GERMANY",        primary: 0x000000, secondary: 0xDD0000, accent: 0xFFCE00, flagFn: "germany",   floor: "stone" },
   unknown:       { name: "Travels",        native: "✦",          english: "TRAVELS",        primary: 0xC4A05A, secondary: 0xF4EAD5, accent: 0xC4A05A, flagFn: "banner",    floor: "marble" },
 };
 
@@ -1498,6 +1498,17 @@ function drawIsraelFlag() {
   return c;
 }
 
+// ---- Germany: black/red/gold horizontal tricolour. ----
+function drawGermanyFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000000'; ctx.fillRect(0,   0, 900, 200);
+  ctx.fillStyle = '#dd0000'; ctx.fillRect(0, 200, 900, 200);
+  ctx.fillStyle = '#ffce00'; ctx.fillRect(0, 400, 900, 200);
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
 // Helper shared by several flags — filled 5-point star via Path
 function drawFiveStarPath(ctx, cx, cy, radius, rotation = -Math.PI/2) {
   ctx.beginPath();
@@ -1664,6 +1675,7 @@ function buildCountryAccents(room) {
     singapore: drawSingaporeFlag,
     vietnam:   drawVietnamFlag,
     israel:    drawIsraelFlag,
+    germany:   drawGermanyFlag,
   };
   const flagCanvas = flagDrawers[country.flagFn]
     ? flagDrawers[country.flagFn]()
@@ -2582,30 +2594,139 @@ function buildGenericCountryDecor(room) {
 function buildThailandDecor(room) {
   const { zEnd, w } = room;
   const halfW = w / 2;
-  // Stylized low-poly elephant on a plinth — box body + tapered trunk
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x7a6a55, roughness: 0.9 });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xe6c060, roughness: 0.3, metalness: 0.85,
+    emissive: 0xc4a05a, emissiveIntensity: 0.18,
+  });
+  const teakMat = new THREE.MeshStandardMaterial({ color: 0x4a2818, roughness: 0.85 });
+
+  // ── Right side: stylised Thai stupa / chedi (the iconic golden bell-shape) ──
+  const stupa = new THREE.Group();
+  // Stepped square base
+  const base1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), teakMat);
+  base1.position.y = 0.05; stupa.add(base1);
+  const base2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.6), teakMat);
+  base2.position.y = 0.14; stupa.add(base2);
+  // Three octagonal tiers
+  let yPos = 0.18;
+  for (let i = 0; i < 3; i++) {
+    const r = 0.3 - i * 0.05;
+    const tier = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 0.02, 0.12, 8), goldMat);
+    tier.position.y = yPos + 0.06;
+    stupa.add(tier);
+    yPos += 0.14;
+  }
+  // Bell shape (half sphere)
+  const bell = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+    goldMat
+  );
+  bell.position.y = yPos + 0.05;
+  stupa.add(bell);
+  // Five stacked discs (yasti)
+  yPos += 0.25;
+  for (let i = 0; i < 5; i++) {
+    const r = 0.07 - i * 0.008;
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.03, 14), goldMat);
+    disc.position.y = yPos + i * 0.045;
+    stupa.add(disc);
+  }
+  // Slim spire on top
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.5, 12), goldMat);
+  spire.position.y = yPos + 5 * 0.045 + 0.25;
+  stupa.add(spire);
+  stupa.position.set(halfW - 0.9, 0, zEnd - 1.0);
+  stupa.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(stupa);
+  addCollision(halfW - 0.9, zEnd - 1.0, 0.9, 0.9);
+
+  // ── Centre: the temple-guardian elephant on a gold plinth (now larger) ──
   const el = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.28), stoneMat);
-  body.position.y = 0.4; el.add(body);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.26), stoneMat);
-  head.position.set(0.33, 0.45, 0); el.add(head);
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.35, 10), stoneMat);
-  trunk.position.set(0.48, 0.22, 0); trunk.rotation.z = -Math.PI / 4;
-  el.add(trunk);
-  for (const [lx, lz] of [[-0.22, -0.09], [-0.22, 0.09], [0.22, -0.09], [0.22, 0.09]]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.08), stoneMat);
-    leg.position.set(lx, 0.15, lz);
+  const elBody = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.42, 0.34), stoneMat);
+  elBody.position.y = 0.45; el.add(elBody);
+  const elHead = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.36, 0.32), stoneMat);
+  elHead.position.set(0.4, 0.5, 0); el.add(elHead);
+  const elTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.45, 12), stoneMat);
+  elTrunk.position.set(0.6, 0.26, 0); elTrunk.rotation.z = -Math.PI / 4;
+  el.add(elTrunk);
+  // Tusks (small cones)
+  for (const sz of [-0.1, 0.1]) {
+    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.15, 8),
+      new THREE.MeshStandardMaterial({ color: 0xf6edd7, roughness: 0.5 }));
+    tusk.position.set(0.55, 0.42, sz);
+    tusk.rotation.z = Math.PI / 2;
+    el.add(tusk);
+  }
+  // Ear flaps
+  for (const sz of [-0.18, 0.18]) {
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.25, 0.18), stoneMat);
+    ear.position.set(0.36, 0.55, sz);
+    el.add(ear);
+  }
+  for (const [lx, lz] of [[-0.25, -0.11], [-0.25, 0.11], [0.25, -0.11], [0.25, 0.11]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.36, 0.1), stoneMat);
+    leg.position.set(lx, 0.18, lz);
     el.add(leg);
   }
-  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.8 }));
+  // Decorative gold blanket on the back
+  const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.3), goldMat);
+  blanket.position.y = 0.67; el.add(blanket);
+  // Tail
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.018, 0.18, 8), stoneMat);
+  tail.position.set(-0.3, 0.4, 0); tail.rotation.z = 0.6;
+  el.add(tail);
+  // Gold plinth
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.6), goldMat);
   plinth.position.y = -0.06; el.add(plinth);
-  el.position.set(halfW - 0.85, 0.08, zEnd - 1.0);
+  el.position.set(-halfW + 1.0, 0.08, zEnd - 1.0);
+  el.rotation.y = -0.3;
   el.traverse(o => { if (o.isMesh) o.castShadow = true; });
   scene.add(el);
-  addCollision(halfW - 0.85, zEnd - 1.0, 1.0, 0.7);
-  // Lotus on the left
-  buildGenericCountryDecor(room);  // still add the plant/orb combo on the other side
+  addCollision(-halfW + 1.0, zEnd - 1.0, 1.1, 0.7);
+
+  // ── Lotus pond accent (a small reflecting bowl with floating pink lotus) ──
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.1, 24),
+    new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.85 }));
+  bowl.position.set(0, 0.05, zEnd - 0.85);
+  scene.add(bowl);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(0.3, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0x6ab0c8, roughness: 0.15, metalness: 0.7,
+      emissive: 0x3a8aa8, emissiveIntensity: 0.4,
+    }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(0, 0.105, zEnd - 0.85);
+  scene.add(water);
+  // Three pink lotus petals + green pad
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x4a8a5a, roughness: 0.7, side: THREE.DoubleSide,
+        emissive: 0x2a5a3a, emissiveIntensity: 0.15,
+      }));
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(Math.cos(a) * 0.16, 0.108, zEnd - 0.85 + Math.sin(a) * 0.16);
+    scene.add(pad);
+    // Lotus flower (cluster of small pink petals)
+    for (let j = 0; j < 6; j++) {
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6),
+        new THREE.MeshStandardMaterial({
+          color: 0xf4a8c8, roughness: 0.7,
+          emissive: 0xf4a8c8, emissiveIntensity: 0.2,
+        }));
+      const pa = (j / 6) * Math.PI * 2;
+      petal.scale.set(1.2, 0.6, 1.0);
+      petal.position.set(
+        Math.cos(a) * 0.16 + Math.cos(pa) * 0.025,
+        0.13,
+        zEnd - 0.85 + Math.sin(a) * 0.16 + Math.sin(pa) * 0.025,
+      );
+      scene.add(petal);
+    }
+  }
+  addCollision(0, zEnd - 0.85, 0.7, 0.7);
 }
 DECOR_BUILDERS.thailand = buildThailandDecor;
 
@@ -4391,17 +4512,166 @@ function placeExhibits() {
   Object.entries(byRoom).forEach(([roomKey, exhibits]) => {
     const room = ROOMS.find(r => r.key === roomKey);
     if (!room) return;
-    // Split between left wall and right wall, alternating
+    // Split exhibits into wall vs centre groups (display flag from build.py).
+    const wallExhibits = exhibits.filter(e => e.display !== 'center');
+    const centreExhibits = exhibits.filter(e => e.display === 'center');
+    // Wall: alternate between left and right
     const leftWall = [], rightWall = [];
-    exhibits.forEach((ex, i) => (i % 2 === 0 ? leftWall : rightWall).push(ex));
+    wallExhibits.forEach((ex, i) => (i % 2 === 0 ? leftWall : rightWall).push(ex));
     placeOnWall(leftWall, room, 'left');
     placeOnWall(rightWall, room, 'right');
+    // Centre: free-standing canvases on plinths between the bench and tomb.
+    if (centreExhibits.length) placeStandingCanvases(centreExhibits, room);
     // One themed tomb per country room, with the room's summarised story.
     if (room.tone === 'country') {
       const idx = countryRooms.indexOf(room) + 1;
       buildCountryTomb(room, idx, totalCountries, exhibits);
     }
   });
+}
+
+// Free-standing photo canvases in the room centre — like sculpture bases at
+// a real museum. Each canvas is a framed photo on a tall brass plinth,
+// positioned along the room's z-axis between the bench (zCenter) and the
+// tomb (zEnd-2.2), alternating which side of the centreline they sit on
+// so the visitor walks a curated path between them.
+function placeStandingCanvases(list, room) {
+  if (!list.length) return;
+  const { zCenter, zEnd, w } = room;
+  // The walkable centre band is from z=zCenter+0.7 (just past the bench) to
+  // z=zEnd-3.5 (just before the tomb). Spread the canvases across it.
+  const z0 = zCenter + 0.8;
+  const z1 = zEnd - 3.6;
+  const span = Math.max(0.8, z1 - z0);
+  const N = list.length;
+  list.forEach((ex, i) => {
+    const t = N === 1 ? 0.5 : i / (N - 1);
+    const z = z0 + t * span;
+    // Alternate left/right of centreline so it forms a zigzag — the visitor
+    // walks past each one and can read both faces.
+    const side = (i % 2 === 0) ? -1 : 1;
+    const x = side * (w * 0.18);
+    // Face inward toward the centreline (so canvases address the path).
+    const rotY = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    buildStandingCanvas(ex, x, z, rotY);
+  });
+}
+
+function buildStandingCanvas(ex, x, z, rotY) {
+  const group = new THREE.Group();
+  scene.add(group);
+
+  // Brass plinth — slim square column ~1.0m tall.
+  const plinthMat = new THREE.MeshStandardMaterial({
+    color: 0xe8dcc0, roughness: 0.45, metalness: 0.1,
+    emissive: 0xe8dcc0, emissiveIntensity: 0.08,
+  });
+  const brassMat = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.28, metalness: 0.85,
+    emissive: 0xc4a05a, emissiveIntensity: 0.18,
+  });
+  const plinthH = 1.0;
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.32, plinthH, 0.32), plinthMat);
+  shaft.position.set(x, plinthH / 2, z);
+  shaft.castShadow = true; shaft.receiveShadow = true;
+  scene.add(shaft);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), brassMat);
+  cap.position.set(x, plinthH + 0.025, z); scene.add(cap);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), brassMat);
+  base.position.set(x, 0.025, z); scene.add(base);
+  addCollision(x, z, 0.5, 0.5);
+
+  // Canvas (default A3-portrait-ish until photo loads). Standing height: 1.4m.
+  const canvasW = 1.0, canvasH = 1.3;
+  const canvasMat = new THREE.MeshStandardMaterial({
+    color: 0xc9b896, roughness: 0.85,
+    emissive: 0xffffff, emissiveIntensity: 0.45,
+  });
+  const matteMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e3c5, roughness: 0.85,
+    emissive: 0xf0e3c5, emissiveIntensity: 0.12,
+  });
+  const matte = new THREE.Mesh(new THREE.PlaneGeometry(canvasW + 0.1, canvasH + 0.1), matteMat);
+  matte.position.set(x, plinthH + canvasH / 2 + 0.15, z);
+  matte.rotation.y = rotY;
+  scene.add(matte);
+  const canvas = new THREE.Mesh(new THREE.PlaneGeometry(canvasW, canvasH), canvasMat);
+  canvas.position.set(x, plinthH + canvasH / 2 + 0.15, z + Math.cos(rotY) * 0.005 - Math.sin(rotY) * 0.005);
+  canvas.rotation.y = rotY;
+  // Push slightly forward along the canvas's outward normal so it sits in
+  // front of the matte (same trick as wall exhibits).
+  const fwdX = Math.sin(rotY), fwdZ = Math.cos(rotY);
+  canvas.position.set(x + fwdX * 0.012, plinthH + canvasH / 2 + 0.15, z + fwdZ * 0.012);
+  scene.add(canvas);
+
+  // Brass extruded frame (reuses buildFrameMesh from the wall exhibits).
+  const frame = buildFrameMesh(canvasW + 0.1, canvasH + 0.1, {
+    color: 0xc4a05a, metal: 0.85, rough: 0.28, molding: 0.07, depth: 0.05,
+  });
+  frame.position.set(x + fwdX * 0.005, plinthH + canvasH / 2 + 0.15, z + fwdZ * 0.005);
+  frame.rotation.y = rotY;
+  scene.add(frame);
+
+  // Crown ornament on top of the plinth — a small brass orb so the silhouette
+  // reads as "sculpture base" at first glance.
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), brassMat);
+  orb.position.set(x, plinthH + canvasH + 0.3, z);
+  scene.add(orb);
+
+  // Interactable for zoom (same shape as wall exhibits).
+  const interactGeom = new THREE.PlaneGeometry(canvasW + 0.4, canvasH + 0.4);
+  const invisMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const interact = new THREE.Mesh(interactGeom, invisMat);
+  interact.position.set(x + fwdX * 0.05, plinthH + canvasH / 2 + 0.15, z + fwdZ * 0.05);
+  interact.rotation.y = rotY;
+  scene.add(interact);
+
+  // We need a group to lerp during zoom — wrap the photo plane in one.
+  const photoGroup = new THREE.Group();
+  photoGroup.position.copy(canvas.position);
+  photoGroup.rotation.y = rotY;
+  scene.remove(canvas); scene.remove(matte); scene.remove(frame);
+  // Re-parent into the group with positions relative to group origin.
+  matte.position.set(0, 0, 0);
+  matte.rotation.y = 0;
+  canvas.position.set(0, 0, 0.012);
+  canvas.rotation.y = 0;
+  frame.position.set(0, 0, 0.005);
+  frame.rotation.y = 0;
+  photoGroup.add(matte); photoGroup.add(canvas); photoGroup.add(frame);
+  scene.add(photoGroup);
+
+  interactables.push({
+    mesh: interact,
+    position: interact.position.clone(),
+    type: 'exhibit',
+    exhibit: ex,
+    group: photoGroup,
+    restPosition: photoGroup.position.clone(),
+    restScale: photoGroup.scale.clone(),
+    normal: 1,
+    rotY,
+  });
+
+  // Load the actual photo into the canvas material.
+  if (ex.src) {
+    loader.load(
+      ex.src,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.generateMipmaps = false;
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        canvasMat.map = tex;
+        canvasMat.emissiveMap = tex;
+        canvasMat.color.set(0xffffff);
+        canvasMat.needsUpdate = true;
+      },
+      undefined,
+      () => { /* leave cream placeholder */ }
+    );
+  }
 }
 
 function placeOnWall(list, room, side) {

@@ -108,17 +108,18 @@ def _placeholder_plaque(entry: dict) -> tuple[str, str, str]:
     return title, date_display, plaque
 
 
-def _curate(manifest: list[dict], per_country_cap: int = 10, burst_seconds: int = 6) -> list[dict]:
+def _curate(manifest: list[dict], wall_cap: int = 10, center_cap: int = 6, burst_seconds: int = 6) -> list[dict]:
     """Down-select the manifest before turning it into exhibits.
 
-    Two passes:
+    Three passes:
       1. Burst dedupe — collapse runs of photos taken within `burst_seconds`
-         into a single representative (the one with the largest filesize,
-         which usually correlates with the sharpest variant). This removes
-         the kind of multi-shot bursts a phone camera produces.
-      2. Per-country cap — keep at most `per_country_cap` photos per country,
-         spread evenly across the country's date range so the exhibits feel
-         like a sampler of the trip, not the first ten frames.
+         into a single representative (largest filesize → likely sharpest).
+      2. Wall sampling — pick `wall_cap` photos per country, spread evenly
+         across the country's date range. Tagged display="wall".
+      3. Centerpiece sampling — for countries with more than `wall_cap`
+         remaining photos, pick up to `center_cap` additional ones (also
+         spread evenly across what's left) and tag display="center".
+         These render as free-standing canvases in the room's middle.
     """
     from collections import defaultdict
 
@@ -145,12 +146,10 @@ def _curate(manifest: list[dict], per_country_cap: int = 10, burst_seconds: int 
                 except ValueError:
                     close = False
             if close and kept_in_burst is not None:
-                # Keep the larger file (more likely the better-quality variant).
                 cur_path  = ROOT / "photos" / m["filename"]
                 prev_path = ROOT / "photos" / kept_in_burst["filename"]
                 try:
                     if cur_path.stat().st_size > prev_path.stat().st_size:
-                        # Replace previous burst-rep with this one.
                         deduped[-1] = m
                         kept_in_burst = m
                 except FileNotFoundError:
@@ -160,25 +159,42 @@ def _curate(manifest: list[dict], per_country_cap: int = 10, burst_seconds: int 
                 kept_in_burst = m
             last_ts = ts
 
-    # 2. Per-country cap with even spread across the country's photos.
-    capped: list[dict] = []
+    # 2 + 3. Wall + centre sampling per country.
+    chosen: list[dict] = []
     by_country2 = defaultdict(list)
     for m in deduped:
         by_country2[m.get("country") or "unknown"].append(m)
+
+    def _spread(items: list[dict], n: int) -> list[dict]:
+        """Return n items evenly spread across `items` (chronological)."""
+        if n <= 0 or not items:
+            return []
+        if len(items) <= n:
+            return list(items)
+        step = (len(items) - 1) / (n - 1)
+        idx = sorted({round(i * step) for i in range(n)})
+        return [items[i] for i in idx[:n]]
+
+    wall_total = 0
+    centre_total = 0
     for country, items in by_country2.items():
         items.sort(key=lambda p: p.get("timestamp") or "")
-        if len(items) <= per_country_cap:
-            capped.extend(items)
-            continue
-        # Evenly spaced indices across the country's photos.
-        step = (len(items) - 1) / (per_country_cap - 1)
-        idx = sorted({round(i * step) for i in range(per_country_cap)})
-        capped.extend(items[i] for i in idx[:per_country_cap])
+        wall = _spread(items, wall_cap)
+        wall_set = {id(m) for m in wall}
+        for m in wall:
+            m["display"] = "wall"
+        chosen.extend(wall)
+        wall_total += len(wall)
+        leftover = [m for m in items if id(m) not in wall_set]
+        centre = _spread(leftover, center_cap)
+        for m in centre:
+            m["display"] = "center"
+        chosen.extend(centre)
+        centre_total += len(centre)
 
-    # Restore overall chronological order.
-    capped.sort(key=lambda p: p.get("timestamp") or "")
-    print(f"  ✓ curated {len(manifest)} → {len(deduped)} after burst-dedupe → {len(capped)} after cap (≤{per_country_cap}/country)")
-    return capped
+    chosen.sort(key=lambda p: p.get("timestamp") or "")
+    print(f"  ✓ curated {len(manifest)} → {len(deduped)} after burst-dedupe → {len(chosen)} chosen ({wall_total} wall + {centre_total} centre, ≤{wall_cap}+{center_cap}/country)")
+    return chosen
 
 
 def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> str:
@@ -195,8 +211,8 @@ def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> s
     manifest = json.loads(manifest_path.read_text())
     plaques = json.loads(plaques_path.read_text()) if plaques_path.exists() else {}
 
-    # Curate: burst-dedupe + cap to 10 per country with even spread.
-    manifest = _curate(manifest, per_country_cap=10, burst_seconds=6)
+    # Curate: burst-dedupe + 10 wall photos + up to 6 centre standing canvases per country.
+    manifest = _curate(manifest, wall_cap=10, center_cap=6, burst_seconds=6)
 
     # Build an exhibits array where each entry matches the structure the
     # engine consumes: { room, src, title, date, plaque }.
@@ -215,6 +231,7 @@ def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> s
             "title": title,
             "date": date,
             "plaque": plaque,
+            "display": m.get("display") or "wall",
         }
         lines.append("    " + json.dumps(entry, ensure_ascii=False) + ",")
 
