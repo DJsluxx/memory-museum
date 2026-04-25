@@ -1195,6 +1195,7 @@ const COUNTRY_THEMES = {
   italy:         { name: "Italy",          native: "Italia",     english: "ITALIA",         primary: 0x009246, secondary: 0xFFFFFF, accent: 0xCE2B37, flagFn: "banner",    floor: "marble" },
   greece:        { name: "Greece",         native: "Ελλάς",      english: "HELLAS",         primary: 0x0D5EAF, secondary: 0xFFFFFF, accent: 0x0D5EAF, flagFn: "banner",    floor: "marble" },
   spain:         { name: "Spain",          native: "España",     english: "ESPAÑA",         primary: 0xAA151B, secondary: 0xF1BF00, accent: 0xAA151B, flagFn: "banner",    floor: "terracotta" },
+  germany:       { name: "Germany",        native: "Deutschland",english: "DEUTSCHLAND",    primary: 0x000000, secondary: 0xDD0000, accent: 0xFFCE00, flagFn: "banner",    floor: "stone" },
   unknown:       { name: "Travels",        native: "✦",          english: "TRAVELS",        primary: 0xC4A05A, secondary: 0xF4EAD5, accent: 0xC4A05A, flagFn: "banner",    floor: "marble" },
 };
 
@@ -2573,7 +2574,7 @@ function buildGenericCountryDecor(room) {
 // Specific builders above (japan/china/korea) take precedence.
 ["taiwan","thailand","singapore","vietnam","israel","uae","banner",
  "cambodia","laos","malaysia","indonesia","philippines","india",
- "hong-kong","usa","uk","france","italy","greece","spain"].forEach(k => {
+ "hong-kong","usa","uk","france","italy","greece","spain","germany"].forEach(k => {
   if (!DECOR_BUILDERS[k]) DECOR_BUILDERS[k] = buildGenericCountryDecor;
 });
 
@@ -2647,6 +2648,254 @@ function buildIsraelDecor(room) {
   }
 }
 DECOR_BUILDERS.israel = buildIsraelDecor;
+
+// ── Germany: stylised Brandenburg-Gate / Berliner-Dom inspired silhouette ──
+function buildGermanyDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  // Sandstone-coloured columns + a domed top — reads as classical Berlin
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: 0xd6c89a, roughness: 0.7, metalness: 0.05,
+    emissive: 0xd6c89a, emissiveIntensity: 0.1,
+  });
+  const copper = new THREE.MeshStandardMaterial({
+    color: 0x4a8a78, roughness: 0.5, metalness: 0.6,   // weathered-copper green
+    emissive: 0x2a5a4a, emissiveIntensity: 0.18,
+  });
+  const gold = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.3, metalness: 0.85,
+    emissive: 0xc4a05a, emissiveIntensity: 0.15,
+  });
+  const g = new THREE.Group();
+  // Stepped plinth
+  const step1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.7), stoneMat);
+  step1.position.y = 0.05; g.add(step1);
+  const step2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.6), stoneMat);
+  step2.position.y = 0.14; g.add(step2);
+  // Six Doric columns in a row (Brandenburg gate has 6)
+  const colXs = [-0.55, -0.33, -0.11, 0.11, 0.33, 0.55];
+  for (const cx of colXs) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.85, 14), stoneMat);
+    col.position.set(cx, 0.6, 0); g.add(col);
+    // capital
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.14), stoneMat);
+    cap.position.set(cx, 1.04, 0); g.add(cap);
+    // base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.14), stoneMat);
+    base.position.set(cx, 0.18, 0); g.add(base);
+  }
+  // Entablature (horizontal slab over the columns)
+  const ent = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 0.22), stoneMat);
+  ent.position.y = 1.13; g.add(ent);
+  // Frieze band (slightly taller, gold-trimmed)
+  const fri = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 0.18), gold);
+  fri.position.y = 1.26; g.add(fri);
+  // Pediment (triangular roof) — approximated as a flat box
+  const ped = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.18, 0.18), stoneMat);
+  ped.position.y = 1.36; g.add(ped);
+  // Quadriga charioteer figure on top — abstracted to a horse rider silhouette
+  const horseBody = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.32), copper);
+  horseBody.position.y = 1.52; g.add(horseBody);
+  for (const lz of [-0.12, 0.12]) for (const lx of [-0.06, 0.06]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.12, 0.025), copper);
+    leg.position.set(lx, 1.41, lz); g.add(leg);
+  }
+  const horseHead = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.12), copper);
+  horseHead.position.set(0, 1.6, 0.18); g.add(horseHead);
+  // Charioteer (small standing figure)
+  const fig = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.1), copper);
+  fig.position.set(0, 1.65, -0.05); g.add(fig);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), copper);
+  head.position.set(0, 1.79, -0.05); g.add(head);
+
+  g.position.set(halfW - 1.0, 0, zEnd - 1.0);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(g);
+  addCollision(halfW - 1.0, zEnd - 1.0, 1.7, 0.8);
+
+  // Pretzel on a low pedestal in the opposite corner — comfort-food touch
+  const ped2 = tallPedestal(0.6, 0.22, 0xb89068);
+  ped2.position.set(-halfW + 0.7, 0, zEnd - 1.0);
+  scene.add(ped2);
+  addCollision(-halfW + 0.7, zEnd - 1.0, 0.55, 0.55);
+  // Pretzel = torus (knotted approximation: just a torus + two crossing arcs)
+  const pretzelMat = new THREE.MeshStandardMaterial({
+    color: 0x8a5a30, roughness: 0.7,
+    emissive: 0x4a2a14, emissiveIntensity: 0.18,
+  });
+  const pretzel = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 10, 22), pretzelMat);
+  ring.rotation.x = Math.PI / 2; pretzel.add(ring);
+  for (const sx of [-0.1, 0.1]) {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.035, 10, 18, Math.PI), pretzelMat);
+    arc.rotation.x = Math.PI / 2;
+    arc.rotation.z = sx * 1.4;
+    arc.position.set(sx * 0.05, 0, sx * 0.04);
+    pretzel.add(arc);
+  }
+  // Salt grains
+  for (let i = 0; i < 8; i++) {
+    const salt = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, emissive: 0xffffff, emissiveIntensity: 0.4 }));
+    const a = (i / 8) * Math.PI * 2;
+    salt.position.set(Math.cos(a) * 0.16, 0.04, Math.sin(a) * 0.16);
+    pretzel.add(salt);
+  }
+  pretzel.position.set(-halfW + 0.7, 0.78, zEnd - 1.0);
+  scene.add(pretzel);
+}
+DECOR_BUILDERS.germany = buildGermanyDecor;
+
+// ── Italy: stylised Roman colonnade + Vespa silhouette ──
+function buildItalyDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  // Travertine-coloured columns
+  const trav = new THREE.MeshStandardMaterial({
+    color: 0xe8d8b8, roughness: 0.7, metalness: 0.05,
+    emissive: 0xe8d8b8, emissiveIntensity: 0.1,
+  });
+  const arches = new THREE.Group();
+  // Three Roman arches in a row
+  for (let i = -1; i <= 1; i++) {
+    const x = i * 0.5;
+    // Two slim columns per arch
+    for (const sx of [-0.18, 0.18]) {
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.2, 14), trav);
+      col.position.set(x + sx, 0.6, 0); arches.add(col);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.04, 0.15), trav);
+      cap.position.set(x + sx, 1.21, 0); arches.add(cap);
+    }
+    // Arch (half torus)
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.04, 8, 16, Math.PI), trav);
+    arch.position.set(x, 1.23, 0);
+    arches.add(arch);
+  }
+  // Continuous entablature on top
+  const ent = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.22), trav);
+  ent.position.y = 1.5; arches.add(ent);
+  arches.position.set(halfW - 0.95, 0, zEnd - 1.0);
+  arches.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(arches);
+  addCollision(halfW - 0.95, zEnd - 1.0, 1.8, 0.8);
+
+  // Vespa silhouette in the opposite back corner — pastel-blue chassis,
+  // chrome accents. Stylised but recognisable.
+  const vespa = new THREE.Group();
+  const blue = new THREE.MeshStandardMaterial({
+    color: 0x9ec4d4, roughness: 0.4, metalness: 0.6,
+    emissive: 0x4a7080, emissiveIntensity: 0.15,
+  });
+  const chrome = new THREE.MeshStandardMaterial({
+    color: 0xe0e0e0, roughness: 0.2, metalness: 0.95,
+    emissive: 0xa0a0a0, emissiveIntensity: 0.2,
+  });
+  const black = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 });
+  // Body shell (rounded oblong)
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.36, 18, 14), blue);
+  shell.scale.set(1.5, 0.55, 0.7);
+  shell.position.y = 0.45;
+  vespa.add(shell);
+  // Front leg shield
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.4, 0.4), blue);
+  shield.position.set(0.42, 0.4, 0); vespa.add(shield);
+  // Handlebars
+  const hbStem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 10), chrome);
+  hbStem.position.set(0.42, 0.78, 0); vespa.add(hbStem);
+  const hbBar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 10), chrome);
+  hbBar.rotation.z = Math.PI / 2; hbBar.position.set(0.42, 0.94, 0); vespa.add(hbBar);
+  // Headlamp on the front of the leg shield
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 10),
+    new THREE.MeshStandardMaterial({ color: 0xffffd0, emissive: 0xffeaa0, emissiveIntensity: 0.7, roughness: 0.3 }));
+  head.position.set(0.55, 0.55, 0); vespa.add(head);
+  // Two wheels (chrome rims, black tyres)
+  for (const lx of [-0.45, 0.45]) {
+    const tyre = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.06, 10, 18), black);
+    tyre.rotation.y = Math.PI / 2; tyre.position.set(lx, 0.18, 0);
+    vespa.add(tyre);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 16), chrome);
+    rim.rotation.z = Math.PI / 2; rim.position.set(lx, 0.18, 0);
+    vespa.add(rim);
+  }
+  // Seat
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.28), black);
+  seat.position.set(-0.05, 0.74, 0); vespa.add(seat);
+  vespa.position.set(-halfW + 1.0, 0, zEnd - 1.0);
+  vespa.rotation.y = -0.3;
+  vespa.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(vespa);
+  addCollision(-halfW + 1.0, zEnd - 1.0, 1.4, 0.8);
+}
+DECOR_BUILDERS.italy = buildItalyDecor;
+
+// ── UAE: Burj Khalifa silhouette + a small palm + a brass falcon ──
+function buildUAEDecor(room) {
+  const { zEnd, w } = room;
+  const halfW = w / 2;
+  // Burj Khalifa — six staggered tapered tiers + a thin spire.
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0xb8c8d8, roughness: 0.25, metalness: 0.85,
+    emissive: 0x9ab0c0, emissiveIntensity: 0.35,
+  });
+  const burj = new THREE.Group();
+  let y = 0;
+  for (let i = 0; i < 6; i++) {
+    const w2 = 0.32 - i * 0.035, d2 = 0.32 - i * 0.035, h2 = 0.32;
+    const tier = new THREE.Mesh(new THREE.BoxGeometry(w2, h2, d2), glass);
+    tier.position.y = y + h2 / 2;
+    burj.add(tier);
+    y += h2;
+  }
+  // Tall spire on top
+  const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.025, 0.85, 12), glass);
+  spire.position.y = y + 0.42; burj.add(spire);
+  burj.position.set(halfW - 0.7, 0, zEnd - 1.0);
+  burj.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  scene.add(burj);
+  addCollision(halfW - 0.7, zEnd - 1.0, 0.6, 0.6);
+
+  // Palm tree on the opposite back corner
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6a4a28, roughness: 0.85 });
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 1.8, 10), trunkMat);
+  trunk.position.set(-halfW + 0.7, 0.9, zEnd - 1.0);
+  scene.add(trunk);
+  addCollision(-halfW + 0.7, zEnd - 1.0, 0.4, 0.4);
+  const frondMat = new THREE.MeshStandardMaterial({
+    color: 0x4a8a3a, roughness: 0.7, side: THREE.DoubleSide,
+    emissive: 0x2a5a1a, emissiveIntensity: 0.15,
+  });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.18), frondMat);
+    frond.position.set(-halfW + 0.7 + Math.cos(a) * 0.25, 1.85, zEnd - 1.0 + Math.sin(a) * 0.25);
+    frond.rotation.y = a; frond.rotation.z = -0.3;
+    scene.add(frond);
+  }
+  // Sand dune in front-corner area
+  const dune = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0xd8b478, roughness: 0.95 }));
+  dune.scale.set(1.4, 0.4, 1.0);
+  dune.position.set(-halfW + 1.4, 0, zEnd - 2.4);
+  scene.add(dune);
+  // Gold falcon perched on a small brass plinth
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.3, metalness: 0.85,
+    emissive: 0xc4a05a, emissiveIntensity: 0.18,
+  });
+  const perch = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.5, 12), goldMat);
+  perch.position.set(halfW - 1.7, 0.25, zEnd - 1.0); scene.add(perch);
+  const falcon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), goldMat);
+  falcon.scale.set(1.4, 0.95, 0.95);
+  falcon.position.set(halfW - 1.7, 0.6, zEnd - 1.0);
+  scene.add(falcon);
+  // Beak
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.06, 8), goldMat);
+  beak.position.set(halfW - 1.62, 0.6, zEnd - 1.0);
+  beak.rotation.z = -Math.PI / 2;
+  scene.add(beak);
+}
+DECOR_BUILDERS.uae = buildUAEDecor;
 
 if (!DECOR_BUILDERS.default) DECOR_BUILDERS.default = buildGenericCountryDecor;
 
@@ -2893,34 +3142,102 @@ function attachChandelier(room) {
   scene.add(ch);
 }
 
-// Decorative arched doorway with a keystone — applied to both ends of every
-// non-letter room. Built as a thin extruded plane in front of the lintel.
+// Full architectural portal over each doorway: two fluted columns,
+// a semicircular arch, a carved keystone, and a cornice band. Tinted
+// per room so each country has its own themed entryway.
 function addDoorArches(room, prevRoom, nextRoom) {
   const { w, zStart, zEnd, tone } = room;
   if (tone === "night") return;   // letter room doorway is austere
   const accent = tone === "country" ? room.country.accent : 0xc4a05a;
-  const arcMat = new THREE.MeshStandardMaterial({
+  const stone = tone === "country" ? 0xe8dcc0 : 0xe8dcc0;
+  const accentMat = new THREE.MeshStandardMaterial({
     color: accent, roughness: 0.3, metalness: 0.85,
-    emissive: accent, emissiveIntensity: 0.12,
+    emissive: accent, emissiveIntensity: 0.14,
   });
-  // Helper: place the keystone & cornice at one end of the room.
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: stone, roughness: 0.55, metalness: 0.05,
+    emissive: stone, emissiveIntensity: 0.08,
+  });
+
   function placeAt(zPos, isOpen) {
     if (!isOpen) return;
-    // Keystone above the doorway centre
-    const ks = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.18), arcMat);
-    ks.position.set(0, DOOR_H + 0.18, zPos);
-    scene.add(ks);
-    // Decorative cornice band right above the lintel
-    const cornice = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 0.6, 0.04, 0.16), arcMat);
-    cornice.position.set(0, DOOR_H + 0.36, zPos);
-    scene.add(cornice);
-    // Pediment — two angled bars rising from cornice to keystone (visual flourish)
+    const halfDoor = DOOR_W / 2;
+    // ── Two fluted columns flanking the doorway, room-side ──
+    const colX = halfDoor + 0.18;
+    const colH = DOOR_H;
     for (const sx of [-1, 1]) {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.14), arcMat);
-      bar.position.set(sx * 0.45, DOOR_H + 0.42, zPos);
-      bar.rotation.z = sx * -0.35;
-      scene.add(bar);
+      const x = sx * colX;
+      // Stepped square base
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.32), stoneMat);
+      b1.position.set(x, 0.03, zPos);
+      scene.add(b1);
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.26), stoneMat);
+      b2.position.set(x, 0.085, zPos);
+      scene.add(b2);
+      // Fluted shaft — cylinder + 8 thin recess strips
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.11, colH - 0.2, 18), stoneMat);
+      shaft.position.set(x, 0.115 + (colH - 0.2) / 2, zPos);
+      scene.add(shaft);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const flute = new THREE.Mesh(new THREE.BoxGeometry(0.012, colH - 0.3, 0.012),
+          new THREE.MeshStandardMaterial({ color: 0x8a7050, roughness: 0.7 }));
+        flute.position.set(x + Math.cos(a) * 0.105, 0.115 + (colH - 0.2) / 2, zPos + Math.sin(a) * 0.105);
+        scene.add(flute);
+      }
+      // Capital (Doric simplification)
+      const capN = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.04, 14), stoneMat);
+      capN.position.set(x, colH - 0.06, zPos);
+      scene.add(capN);
+      const capF = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.34), stoneMat);
+      capF.position.set(x, colH - 0.02, zPos);
+      scene.add(capF);
+      // Brass ring trim at the top of the capital
+      const ring = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.018, 0.36), accentMat);
+      ring.position.set(x, colH + 0.005, zPos);
+      scene.add(ring);
     }
+
+    // ── Semicircular arch above the doorway ──
+    // Half-torus: outer radius = DOOR_W/2 + 0.18, tube radius = 0.07.
+    const archR = halfDoor + 0.18;
+    const arch = new THREE.Mesh(
+      new THREE.TorusGeometry(archR, 0.07, 10, 28, Math.PI),
+      stoneMat
+    );
+    arch.position.set(0, DOOR_H + 0.02, zPos);
+    arch.rotation.y = Math.PI;   // make sure half faces visitor
+    scene.add(arch);
+    // Inner brass band on the arch
+    const archInner = new THREE.Mesh(
+      new THREE.TorusGeometry(archR - 0.05, 0.018, 8, 26, Math.PI),
+      accentMat
+    );
+    archInner.position.set(0, DOOR_H + 0.02, zPos + 0.001);
+    archInner.rotation.y = Math.PI;
+    scene.add(archInner);
+
+    // ── Carved keystone (centred at top of arch) ──
+    const ks = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.42, 0.2), stoneMat);
+    ks.position.set(0, DOOR_H + archR - 0.1, zPos);
+    scene.add(ks);
+    // Brass medallion on the keystone face
+    const medal = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.018, 18), accentMat);
+    medal.rotation.x = Math.PI / 2;
+    medal.position.set(0, DOOR_H + archR - 0.1, zPos + 0.105);
+    scene.add(medal);
+    const medalInner = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.022, 14), stoneMat);
+    medalInner.rotation.x = Math.PI / 2;
+    medalInner.position.set(0, DOOR_H + archR - 0.1, zPos + 0.116);
+    scene.add(medalInner);
+
+    // ── Cornice band running the full doorway width ──
+    const cornice = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 0.9, 0.06, 0.18), accentMat);
+    cornice.position.set(0, DOOR_H + archR + 0.05, zPos);
+    scene.add(cornice);
+    const corniceTop = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 1.05, 0.025, 0.22), stoneMat);
+    corniceTop.position.set(0, DOOR_H + archR + 0.095, zPos);
+    scene.add(corniceTop);
   }
   placeAt(zStart, !!prevRoom);
   placeAt(zEnd,   !!nextRoom);
@@ -3734,6 +4051,7 @@ const TOMB_STYLES = {
   italy:     { stone: 0xe0d0b0, top: 0x009246, cap: 0xce2b37, motif: 'obelisk', accent: 0xce2b37 },
   greece:    { stone: 0xf0ead5, top: 0x0d5eaf, cap: 0xf0ead5, motif: 'obelisk', accent: 0x0d5eaf },
   spain:     { stone: 0xd0a878, top: 0xaa151b, cap: 0xf1bf00, motif: 'lantern', accent: 0xaa151b },
+  germany:   { stone: 0x6a5538, top: 0xffce00, cap: 0x000000, motif: 'obelisk', accent: 0xffce00 },
   unknown:   { stone: 0xd4c8a8, top: 0xc4a05a, cap: 0x8a6e38, motif: 'obelisk', accent: 0xc4a05a },
 };
 
@@ -3785,6 +4103,7 @@ function composeCountryStory(roomKey, exhibits) {
     italy: "Late dinners, early markets, a piazza that seemed to expect us.",
     greece: "White cubes and blue doors; a wind that smelled of salt and oregano.",
     spain: "Late lunches, later dinners, a waiter who called us 'cariño' without knowing us.",
+    germany: "Cold air, warm bread, a cathedral the size of a small country. Cobblestones that ate every shoe we wore.",
     unknown: "A trip that didn't fit tidily into one country — so we kept it loose, the way we lived it.",
   };
   const verse = VERSE[roomKey] || VERSE.unknown;

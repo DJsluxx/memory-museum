@@ -197,6 +197,45 @@ def read_one(path: Path, log: logging.Logger) -> PhotoRecord | None:
         return None
 
 
+def apply_date_overrides(records: list[PhotoRecord], overrides_path: Path) -> int:
+    """Assign countries from a manual date-range map.
+
+    Google Photos strips GPS metadata from public album exports, so EXIF GPS
+    can't be relied upon. country-overrides.json carries the human-curated
+    cluster→country assignments instead. Each range covers an inclusive
+    [from, to] calendar window; any record whose timestamp falls inside it
+    gets that country, overriding whatever GPS or default produced.
+    """
+    if not overrides_path.exists():
+        return 0
+    try:
+        data = json.loads(overrides_path.read_text())
+    except Exception:
+        return 0
+    ranges = data.get("ranges", [])
+    if not ranges:
+        return 0
+    parsed = []
+    for r in ranges:
+        try:
+            d_from = datetime.fromisoformat(r["from"]).date()
+            d_to   = datetime.fromisoformat(r["to"]).date()
+            parsed.append((d_from, d_to, r["country"]))
+        except (KeyError, ValueError):
+            continue
+    if not parsed:
+        return 0
+    hits = 0
+    for rec in records:
+        d = rec.timestamp.date()
+        for d_from, d_to, country in parsed:
+            if d_from <= d <= d_to:
+                rec.country = country
+                hits += 1
+                break
+    return hits
+
+
 def backfill_countries(records: list[PhotoRecord], window_hours: int = 48) -> None:
     """For photos with country='unknown', adopt the country of the nearest
     GPS-tagged photo within ±window_hours. Otherwise leave as 'unknown'."""
@@ -239,6 +278,8 @@ def main() -> None:
     ap.add_argument("--raw", default="photos/raw", type=Path)
     ap.add_argument("--out", default="photos", type=Path)
     ap.add_argument("--manifest", default="photo-manifest.json", type=Path)
+    ap.add_argument("--overrides", default="country-overrides.json", type=Path,
+                    help="manual date-range → country map (used because Google Photos strips GPS)")
     ap.add_argument("--longest", default=2048, type=int)
     ap.add_argument("--quality", default=85, type=int)
     ap.add_argument("--log", default="process-errors.log", type=Path)
@@ -262,6 +303,11 @@ def main() -> None:
     records = deduplicate(records)
     print(f"  after dedup: {len(records)} photos")
 
+    # Manual date-range overrides take precedence over GPS (Google Photos
+    # strips GPS metadata from public-share downloads, so we curate by trip).
+    hits = apply_date_overrides(records, args.overrides)
+    if hits:
+        print(f"  applied date-range country overrides to {hits} photos")
     backfill_countries(records)
     records.sort(key=lambda r: (r.timestamp, r.src_path.name))
 

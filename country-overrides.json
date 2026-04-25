@@ -1,0 +1,15 @@
+{
+  "_comment": "Date-range overrides for photo→country assignment. Used by process_photos.py because Google Photos strips GPS metadata from public album exports, so we can't rely on EXIF GPS. Dates are inclusive ISO calendar dates (UTC).",
+  "ranges": [
+    { "from": "2024-11-09", "to": "2024-11-10", "country": "japan",   "note": "Bushmills bar, blue lights, four strangers" },
+    { "from": "2024-12-28", "to": "2024-12-30", "country": "china",   "note": "CheeseZ arcade" },
+    { "from": "2024-12-31", "to": "2025-01-03", "country": "uae",     "note": "Dubai NYE + Burj Khalifa" },
+    { "from": "2025-03-29", "to": "2025-03-31", "country": "germany", "note": "Berlin (Berliner Dom)" },
+    { "from": "2025-04-30", "to": "2025-05-05", "country": "israel",  "note": "Tel Aviv heart sign, Haifa Bahá'í Gardens" },
+    { "from": "2025-05-06", "to": "2025-05-15", "country": "italy",   "note": "Italian streets" },
+    { "from": "2025-06-08", "to": "2025-06-09", "country": "china",   "note": "Mini K karaoke" },
+    { "from": "2025-06-19", "to": "2025-06-22", "country": "china",   "note": "Beijing CCTV HQ" },
+    { "from": "2025-07-15", "to": "2025-07-20", "country": "china",   "note": "Shanghai LV ship store" },
+    { "from": "2026-04-25", "to": "2026-04-25", "country": "israel",  "note": "Today, at home together" }
+  ]
+}
