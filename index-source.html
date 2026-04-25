@@ -912,25 +912,110 @@ function makeMarbleTexture() {
 }
 
 function makeWallTexture(base = '#efe5cc') {
-  // Flat cream with VERY subtle grain — no visible tiling pattern
+  // Damask wallcovering — subtle tone-on-tone medallions on a cream ground.
+  // Designed to read as "silk wallpaper" from across the room without
+  // becoming a busy pattern up close. Tone-on-tone (warm-cream motifs on
+  // cream ground) so the pattern emerges with light angle, not as dots.
   const S = 1024;
   const c = document.createElement('canvas'); c.width = S; c.height = S;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = base; ctx.fillRect(0, 0, S, S);
-  // Extremely fine pixel noise, barely perceptible, simulates paper/plaster grain
+  // Base — slight vertical gradient so the ceiling is a touch warmer
+  const bg = ctx.createLinearGradient(0, 0, 0, S);
+  bg.addColorStop(0, base);
+  bg.addColorStop(1, '#e6dabe');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, S, S);
+
+  // Damask motif — a single quatrefoil-with-fleurons cell, rendered into
+  // a 4×4 grid so the seams disappear when the texture tiles.
+  function damaskCell(cx, cy, scale = 1, hue = 'rgba(180,150,95,0.18)') {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = hue;
+    // Central diamond
+    ctx.beginPath();
+    ctx.moveTo(0, -56);
+    ctx.bezierCurveTo(28, -36, 28, -20, 0, 0);
+    ctx.bezierCurveTo(-28, -20, -28, -36, 0, -56);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, 56);
+    ctx.bezierCurveTo(28, 36, 28, 20, 0, 0);
+    ctx.bezierCurveTo(-28, 20, -28, 36, 0, 56);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-56, 0);
+    ctx.bezierCurveTo(-36, -28, -20, -28, 0, 0);
+    ctx.bezierCurveTo(-20, 28, -36, 28, -56, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(56, 0);
+    ctx.bezierCurveTo(36, -28, 20, -28, 0, 0);
+    ctx.bezierCurveTo(20, 28, 36, 28, 56, 0);
+    ctx.closePath(); ctx.fill();
+    // Centre rosette
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.rotate((i / 6) * Math.PI * 2);
+      ctx.beginPath();
+      ctx.ellipse(0, -8, 4, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Outer fleurons (tiny diamonds at cardinal corners)
+    for (const a of [Math.PI/4, Math.PI*3/4, -Math.PI/4, -Math.PI*3/4]) {
+      ctx.save();
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(0, -78);
+      ctx.lineTo(8, -68);
+      ctx.lineTo(0, -58);
+      ctx.lineTo(-8, -68);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  // 4 columns × 4 rows of cells, with offset rows for variety.
+  const N = 4;
+  const cellSize = S / N;
+  for (let row = 0; row < N; row++) {
+    const offsetX = (row % 2) * (cellSize / 2);
+    for (let col = 0; col < N; col++) {
+      const x = (col * cellSize + offsetX) % S;
+      const y = row * cellSize + cellSize / 2;
+      damaskCell(x, y, 1.0, 'rgba(176,138,78,0.16)');
+    }
+  }
+  // Connecting tendrils between cells — diagonal flourishes
+  ctx.strokeStyle = 'rgba(176,138,78,0.10)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 64; i++) {
+    const x = Math.random() * S, y = Math.random() * S;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.bezierCurveTo(
+      x + (Math.random() - 0.5) * 80, y + (Math.random() - 0.5) * 80,
+      x + (Math.random() - 0.5) * 80, y + (Math.random() - 0.5) * 80,
+      x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30,
+    );
+    ctx.stroke();
+  }
+  // Extremely fine pixel noise — paper/plaster grain so it doesn't look flat
   const img = ctx.getImageData(0, 0, S, S);
   for (let i = 0; i < img.data.length; i += 4) {
-    const n = (Math.random() - 0.5) * 4; // ±2, very subtle
+    const n = (Math.random() - 0.5) * 5;
     img.data[i]     = Math.min(255, Math.max(0, img.data[i]     + n));
     img.data[i + 1] = Math.min(255, Math.max(0, img.data[i + 1] + n));
     img.data[i + 2] = Math.min(255, Math.max(0, img.data[i + 2] + n));
   }
   ctx.putImageData(img, 0, 0);
-  // A few soft warm patches so lighting doesn't look uniform
-  for (let i = 0; i < 12; i++) {
-    const x = Math.random() * S, y = Math.random() * S, r = Math.random() * 200 + 100;
+  // Soft warm light patches so lighting feels uneven
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * S, y = Math.random() * S, r = Math.random() * 220 + 120;
     const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, 'rgba(255,240,200,0.05)');
+    rg.addColorStop(0, 'rgba(255,240,200,0.06)');
     rg.addColorStop(1, 'rgba(255,240,200,0)');
     ctx.fillStyle = rg;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -1138,7 +1223,7 @@ function floorTexFor(kind) {
 }
 
 const floorTex = makeMarbleTexture(); floorTex.repeat.set(4, 4);  // foyer default
-const wallTex = makeWallTexture(); wallTex.repeat.set(2, 1);
+const wallTex = makeWallTexture(); wallTex.repeat.set(3, 1.5);
 const wallTexLetter = makeStarTexture();
 
 MAT.floor = new THREE.MeshStandardMaterial({
@@ -3395,12 +3480,32 @@ function buildLuxuryAccents(room, prevRoom, nextRoom) {
 function buildRoom(room, prevRoom, nextRoom) {
   const { w, d, zStart, zEnd, zCenter, tone } = room;
   const halfW = w / 2;
-  const wallMat = tone === "night" ? MAT.wallLetter : MAT.wall;
   // Trim color: country rooms use the country's accent color; others use brass.
   const trimColor = tone === "country" ? room.country.accent : 0xc4a05a;
   const trimMat = tone === "country"
     ? new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.3, metalness: 0.85 })
     : MAT.trim;
+
+  // Per-room wall material — letter room keeps its starry blue, every
+  // other room shares the damask-pattern texture but each gets its own
+  // tinted material so the country's primary colour shows through faintly
+  // (silk wallcovering effect: the cream pattern sits over a country-tinted
+  // ground). The pattern texture itself is shared (one canvas, many mats).
+  let wallMat;
+  if (tone === "night") {
+    wallMat = MAT.wallLetter;
+  } else if (tone === "country") {
+    // Mix country primary with cream very strongly toward cream so the
+    // wall reads as "off-cream with a hint of country" — never colourful.
+    const tint = new THREE.Color(room.country.primary).lerp(new THREE.Color(0xf4ead5), 0.92);
+    wallMat = new THREE.MeshStandardMaterial({
+      map: wallTex, roughness: 0.92, color: tint,
+      emissive: tint, emissiveIntensity: 0.18,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+  } else {
+    wallMat = MAT.wall;
+  }
 
   // Floor — per-country procedural tile for country rooms, marble for foyer,
   // deep blue for the letter room. Each country floor gets its own material
@@ -3446,43 +3551,137 @@ function buildRoom(room, prevRoom, nextRoom) {
   // Back wall (z = zEnd) — with opening to next room (or solid for last)
   buildEndWall(zEnd, w, wallMat, nextRoom ? DOOR_W : 0, trimMat);
 
-  // Picture rail on side walls + wainscoting (chair rail at ~0.9m with warm wood panel below) — skip for letter room
+  // Picture rail + wainscoting + frieze on side walls — skip for letter room.
+  // All trim BACK FACES sit 5cm in from the wall face. Previous code positioned
+  // centers so the back faces touched the wall box — causing Z-fighting stripes.
+  //   Math: box width W, center x = -halfW + 0.05 + W/2 puts back face at -halfW + 0.05.
   if (tone !== "night") {
-    // All trim BACK FACES sit 5cm in from the wall face. Previous code positioned centers
-    // so the back faces touched or crashed into the wall box — causing long vertical
-    // Z-fighting stripes running the full length of each side wall on mobile.
-    //   Math: box width W, center x = -halfW + 0.05 + W/2 puts back face at -halfW + 0.05.
-    // Top picture rail (2.85m) — trim-colored
-    const trimL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, d * 0.96), trimMat);
-    trimL.position.set(-halfW + 0.075, 2.85, zCenter);
-    scene.add(trimL);
-    const trimR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, d * 0.96), trimMat);
-    trimR.position.set(halfW - 0.075, 2.85, zCenter);
-    scene.add(trimR);
-    // Chair rail at ~0.9m (classic wainscoting divider)
+    // Picture rail at y=2.85m (line below which photos hang)
+    for (const sx of [-1, 1]) {
+      const tr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, d * 0.96), trimMat);
+      tr.position.set(sx * (halfW - 0.075), 2.85, zCenter);
+      scene.add(tr);
+    }
+
+    // Chair rail at ~0.9m (classic wainscoting divider) — warm wood with brass trim
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x5a3f28, roughness: 0.45, metalness: 0.1 });
-    const chairL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, d), chairMat);
-    chairL.position.set(-halfW + 0.08, 0.9, zCenter);
-    scene.add(chairL);
-    const chairR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, d), chairMat);
-    chairR.position.set(halfW - 0.08, 0.9, zCenter);
-    scene.add(chairR);
-    // Wainscoting panel (warm wood lower half of wall)
-    const wainMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1d, roughness: 0.7, metalness: 0.05 });
-    const panelH = 0.72; // between baseboard top (0.18) and chair rail (0.9)
-    const wainL = new THREE.Mesh(new THREE.BoxGeometry(0.05, panelH, d - 0.1), wainMat);
-    wainL.position.set(-halfW + 0.075, 0.18 + panelH/2, zCenter);
-    scene.add(wainL);
-    const wainR = new THREE.Mesh(new THREE.BoxGeometry(0.05, panelH, d - 0.1), wainMat);
-    wainR.position.set(halfW - 0.075, 0.18 + panelH/2, zCenter);
-    scene.add(wainR);
-    // Baseboard
-    const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, d), MAT.frame);
-    baseL.position.set(-halfW + 0.08, 0.09, zCenter);
-    scene.add(baseL);
-    const baseR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, d), MAT.frame);
-    baseR.position.set(halfW - 0.08, 0.09, zCenter);
-    scene.add(baseR);
+    for (const sx of [-1, 1]) {
+      const cr = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, d), chairMat);
+      cr.position.set(sx * (halfW - 0.075), 0.9, zCenter);
+      scene.add(cr);
+      // Brass cap on top of the chair rail
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.022, d), trimMat);
+      cap.position.set(sx * (halfW - 0.0775), 0.96, zCenter);
+      scene.add(cap);
+    }
+
+    // ── Wainscoting: raised panels with gilt inner trim (high-end look) ──
+    // Each panel is ~1.6-2.0m wide, separated by 6cm stiles. The panel
+    // face proud of the wainscoting backing reads as a real raised panel.
+    const wainBackMat = new THREE.MeshStandardMaterial({
+      color: 0x6a4a30, roughness: 0.65, metalness: 0.05,
+    });
+    const wainFaceMat = new THREE.MeshStandardMaterial({
+      color: 0x8a5e3a, roughness: 0.55, metalness: 0.08,
+      emissive: 0x3a2a1d, emissiveIntensity: 0.12,
+    });
+    const wainTrimMat = new THREE.MeshStandardMaterial({
+      color: 0xc4a05a, roughness: 0.32, metalness: 0.85,
+      emissive: 0xc4a05a, emissiveIntensity: 0.16,
+    });
+    const panelH = 0.62;          // between baseboard top (0.22) and chair rail (0.84)
+    const panelY = 0.22 + panelH / 2;
+    const panelTargetW = 1.7;     // ideal panel width
+    const stile = 0.06;           // gap between panels
+    const usableD = d - 0.4;      // leave 20cm at each end so panels don't crash with cross-walls
+    const numPanels = Math.max(1, Math.round(usableD / (panelTargetW + stile)));
+    const panelW = (usableD - stile * (numPanels - 1)) / numPanels;
+    for (const sx of [-1, 1]) {
+      // Backing strip (the recessed back of the wainscoting)
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.04, panelH, d - 0.2), wainBackMat);
+      back.position.set(sx * (halfW - 0.07), panelY, zCenter);
+      scene.add(back);
+      // Raised face panels with gilt inner trim
+      for (let p = 0; p < numPanels; p++) {
+        const z0 = zCenter - usableD / 2 + stile * p + panelW * (p + 0.5);
+        const face = new THREE.Mesh(new THREE.BoxGeometry(0.025, panelH - 0.1, panelW - 0.06), wainFaceMat);
+        face.position.set(sx * (halfW - 0.054), panelY, z0);
+        scene.add(face);
+        // Gilt trim border around the raised face — 4 thin bars
+        const tDepth = 0.02;
+        const tH = panelH - 0.08;
+        // Top
+        const tT = new THREE.Mesh(new THREE.BoxGeometry(tDepth, 0.018, panelW - 0.06), wainTrimMat);
+        tT.position.set(sx * (halfW - 0.045), panelY + tH/2 - 0.01, z0); scene.add(tT);
+        // Bottom
+        const tB = new THREE.Mesh(new THREE.BoxGeometry(tDepth, 0.018, panelW - 0.06), wainTrimMat);
+        tB.position.set(sx * (halfW - 0.045), panelY - tH/2 + 0.01, z0); scene.add(tB);
+        // Front (along z) - left edge
+        const tL = new THREE.Mesh(new THREE.BoxGeometry(tDepth, tH, 0.018), wainTrimMat);
+        tL.position.set(sx * (halfW - 0.045), panelY, z0 - panelW/2 + 0.04); scene.add(tL);
+        // Right edge
+        const tR = new THREE.Mesh(new THREE.BoxGeometry(tDepth, tH, 0.018), wainTrimMat);
+        tR.position.set(sx * (halfW - 0.045), panelY, z0 + panelW/2 - 0.04); scene.add(tR);
+        // Tiny rosette in the center of each panel
+        const ros = new THREE.Mesh(new THREE.SphereGeometry(0.025, 14, 10), wainTrimMat);
+        ros.position.set(sx * (halfW - 0.04), panelY, z0); scene.add(ros);
+      }
+    }
+
+    // Baseboard (taller now to match the bigger wainscoting)
+    for (const sx of [-1, 1]) {
+      const bs = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.22, d), MAT.frame);
+      bs.position.set(sx * (halfW - 0.075), 0.11, zCenter);
+      scene.add(bs);
+      // Brass shoe at the floor line
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.018, d), trimMat);
+      shoe.position.set(sx * (halfW - 0.0775), 0.009, zCenter);
+      scene.add(shoe);
+    }
+
+    // ── Decorative frieze just below the crown molding (y≈3.55) ──
+    // A repeating Greek-key / scroll pattern baked into a thin canvas-textured
+    // band. Mirror-flipped on the opposite wall so the visual rhythm reads.
+    const friezeC = document.createElement('canvas'); friezeC.width = 1024; friezeC.height = 64;
+    const fctx = friezeC.getContext('2d');
+    const friezeBgHex = '#' + ((trimColor >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+    fctx.fillStyle = friezeBgHex; fctx.fillRect(0, 0, 1024, 64);
+    fctx.strokeStyle = '#2a1f10'; fctx.lineWidth = 4;
+    // Greek-key meander pattern, repeated
+    const cell = 64; const N2 = 1024 / cell;
+    for (let i = 0; i < N2; i++) {
+      const x0 = i * cell;
+      fctx.beginPath();
+      fctx.moveTo(x0 + 4, 56);
+      fctx.lineTo(x0 + 4, 14);
+      fctx.lineTo(x0 + 50, 14);
+      fctx.lineTo(x0 + 50, 36);
+      fctx.lineTo(x0 + 22, 36);
+      fctx.lineTo(x0 + 22, 26);
+      fctx.lineTo(x0 + 38, 26);
+      fctx.stroke();
+    }
+    // Border lines top and bottom
+    fctx.beginPath(); fctx.moveTo(0, 4); fctx.lineTo(1024, 4); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(0, 60); fctx.lineTo(1024, 60); fctx.stroke();
+    const friezeTex = new THREE.CanvasTexture(friezeC);
+    friezeTex.colorSpace = THREE.SRGBColorSpace;
+    friezeTex.wrapS = friezeTex.wrapT = THREE.RepeatWrapping;
+    friezeTex.repeat.set(Math.max(2, Math.round(d / 4)), 1);
+    friezeTex.generateMipmaps = false;
+    friezeTex.minFilter = THREE.LinearFilter;
+    friezeTex.magFilter = THREE.LinearFilter;
+    const friezeMat = new THREE.MeshStandardMaterial({
+      map: friezeTex, roughness: 0.4, metalness: 0.4,
+      emissive: 0xffffff, emissiveMap: friezeTex, emissiveIntensity: 0.25,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    for (const sx of [-1, 1]) {
+      const fr = new THREE.Mesh(new THREE.PlaneGeometry(d * 0.96, 0.32), friezeMat);
+      fr.position.set(sx * (halfW - 0.06), 3.85, zCenter);
+      fr.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+      scene.add(fr);
+    }
   }
 
   // Ambient room light (warm low glow, slightly tinted by country)
