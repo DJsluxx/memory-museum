@@ -14,9 +14,9 @@ on:
         required: true
         default: 'https://photos.app.goo.gl/RHDkpM7ZZsc5zyGw5'
       max_photos:
-        description: 'Max number of photos to fetch (0 = all; default 100)'
+        description: 'Max number of photos to fetch (0 = all). build.py caps at 10 per country.'
         required: false
-        default: '100'
+        default: '0'
       size:
         description: 'Requested photo size (longest edge in px)'
         required: false
@@ -32,7 +32,7 @@ permissions:
 jobs:
   fetch-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout branch
@@ -75,7 +75,7 @@ jobs:
             --size "${{ github.event.inputs.size }}" \
             --concurrency "${{ github.event.inputs.concurrency }}" \
             --max-photos "${{ github.event.inputs.max_photos }}" \
-            --max-minutes 25
+            --max-minutes 45
 
       - name: Show fetch result
         run: |

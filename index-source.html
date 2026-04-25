@@ -2446,38 +2446,117 @@ DECOR_BUILDERS.korea = buildKoreaDecor;
 DECOR_BUILDERS["south-korea"] = buildKoreaDecor;
 
 // ── Generic country decor (used when no specific builder exists) ──
-// Three elements: a country-colored pedestal with an orb on top, a tall
-// banner hanging on the back wall, and a low plant in a corner. Visual
-// weight without making assumptions about the specific culture.
+// For the "Travels" room (unknown country), this is a hero piece in its
+// own right — a brass-banded globe on a marble plinth, four lanterns
+// at the corners, and a tall floor lamp behind it. Country-themed colour
+// accents tint everything subtly.
 function buildGenericCountryDecor(room) {
-  const { zEnd, w } = room;
+  const { zEnd, zCenter, w } = room;
   const halfW = w / 2;
-  const col = room.country?.primary || 0xc4a05a;
-  const accent = room.country?.accent || 0xe6c97c;
+  const col    = room.country?.primary || 0xc4a05a;
+  const accent = room.country?.accent  || 0xe6c97c;
 
-  // Pedestal with colored orb
-  const ped = tallPedestal(0.8, 0.26);
-  ped.position.set(halfW - 0.6, 0, zEnd - 0.9);
-  scene.add(ped);
-  addCollision(halfW - 0.6, zEnd - 0.9, 0.7, 0.7);
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.2, 20, 16),
+  // ─ Globe centre-piece on a marble plinth, pushed to the right wall so
+  //   it doesn't compete with the tomb at the back-centre.
+  const plinthMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5 });
+  const brassMat  = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.3, metalness: 0.85 });
+  const px = halfW - 1.0, pz = zEnd - 1.6;
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.95, 18), plinthMat);
+  plinth.position.set(px, 0.475, pz);
+  plinth.castShadow = true; plinth.receiveShadow = true;
+  scene.add(plinth);
+  addCollision(px, pz, 0.85, 0.85);
+  const cap  = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05, 18), brassMat);
+  cap.position.set(px, 0.97, pz); scene.add(cap);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.06, 18), brassMat);
+  base.position.set(px, 0.03, pz); scene.add(base);
+
+  // Globe — sphere with a procedural ocean/land canvas texture.
+  const gc = document.createElement('canvas'); gc.width = 1024; gc.height = 512;
+  const gx = gc.getContext('2d');
+  // Ocean
+  const oceanGrad = gx.createLinearGradient(0, 0, 0, 512);
+  oceanGrad.addColorStop(0, '#3a7a9a'); oceanGrad.addColorStop(1, '#1a4a6a');
+  gx.fillStyle = oceanGrad; gx.fillRect(0, 0, 1024, 512);
+  // Continents — sparse organic blobs
+  for (let i = 0; i < 26; i++) {
+    gx.fillStyle = `rgba(${110 + Math.random() * 50}, ${80 + Math.random() * 40}, ${40 + Math.random() * 30}, 0.92)`;
+    gx.beginPath();
+    const cx = Math.random() * 1024, cy = Math.random() * 512;
+    const rx = 40 + Math.random() * 140, ry = 30 + Math.random() * 80;
+    gx.ellipse(cx, cy, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+    gx.fill();
+  }
+  // Latitude lines
+  gx.strokeStyle = 'rgba(255,240,210,0.18)'; gx.lineWidth = 1;
+  for (let lat = 64; lat < 512; lat += 64) {
+    gx.beginPath(); gx.moveTo(0, lat); gx.lineTo(1024, lat); gx.stroke();
+  }
+  for (let lon = 64; lon < 1024; lon += 64) {
+    gx.beginPath(); gx.moveTo(lon, 0); gx.lineTo(lon, 512); gx.stroke();
+  }
+  const globeTex = new THREE.CanvasTexture(gc);
+  globeTex.colorSpace = THREE.SRGBColorSpace;
+  globeTex.generateMipmaps = false;
+  globeTex.minFilter = THREE.LinearFilter; globeTex.magFilter = THREE.LinearFilter;
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.32, 36, 24),
     new THREE.MeshStandardMaterial({
-      color: col, emissive: col, emissiveIntensity: 0.25,
-      roughness: 0.35, metalness: 0.5,
-    })
-  );
-  orb.position.set(halfW - 0.6, 1.02, zEnd - 0.9);
-  scene.add(orb);
+      map: globeTex, roughness: 0.6, metalness: 0.05,
+      emissive: 0xffffff, emissiveMap: globeTex, emissiveIntensity: 0.18,
+    }));
+  globe.position.set(px, 1.34, pz);
+  globe.rotation.z = -0.4;  // tilted axis
+  globe.castShadow = true;
+  scene.add(globe);
 
-  // Low potted plant at the opposite back corner
+  // Brass meridian ring around the globe
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.012, 8, 32), brassMat);
+  ring.position.set(px, 1.34, pz);
+  ring.rotation.x = 0.4;  // matches globe tilt
+  scene.add(ring);
+
+  // ─ Four small paper lanterns at the room corners, tinted by accent.
+  const lantHexes = [accent, col, accent, col];
+  const corners = [
+    { x: -halfW + 0.6, z: zEnd - 1.2 },
+    { x:  halfW - 0.6, z: zEnd - 4.5 },
+    { x: -halfW + 0.6, z: zEnd - 4.5 },
+    { x:  halfW - 1.7, z: zEnd - 4.5 },
+  ];
+  corners.forEach((c, i) => {
+    const lt = paperLantern(lantHexes[i % lantHexes.length], 0.28);
+    lt.position.set(c.x, WALL_H - 1.4, c.z);
+    scene.add(lt);
+  });
+
+  // ─ Tall brass floor lamp on the left side, opposite the globe.
+  const lampX = -halfW + 0.7, lampZ = zEnd - 1.6;
+  const lampStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.85, 10), brassMat);
+  lampStem.position.set(lampX, 0.93, lampZ);
+  scene.add(lampStem);
+  const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.05, 18), brassMat);
+  lampBase.position.set(lampX, 0.025, lampZ); scene.add(lampBase);
+  addCollision(lampX, lampZ, 0.4, 0.4);
+  // Shade
+  const shadeMat = new THREE.MeshStandardMaterial({
+    color: 0xf4e3c4, roughness: 0.7,
+    emissive: 0xffd9a0, emissiveIntensity: 0.85,
+  });
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.36, 16, 1, true), shadeMat);
+  shade.position.set(lampX, 1.95, lampZ);
+  scene.add(shade);
+  const lampLight = new THREE.PointLight(0xffd9a0, 1.0, 5, 1.0);
+  lampLight.position.set(lampX, 1.95, lampZ);
+  scene.add(lampLight);
+
+  // ─ A low planter with three drooping leaves on the opposite back corner
+  //   (compact, doesn't compete with the lamp).
   const potMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.7 });
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.22, 14), potMat);
-  pot.position.set(-halfW + 0.55, 0.11, zEnd - 0.9);
+  pot.position.set(-halfW + 0.55, 0.11, zEnd - 4.5);
   scene.add(pot);
-  addCollision(-halfW + 0.55, zEnd - 0.9, 0.5, 0.5);
-  // Leaves — several flattened spheres
-  for (let i = 0; i < 4; i++) {
+  addCollision(-halfW + 0.55, zEnd - 4.5, 0.5, 0.5);
+  for (let i = 0; i < 5; i++) {
     const leaf = new THREE.Mesh(
       new THREE.SphereGeometry(0.16 + Math.random() * 0.04, 12, 10),
       new THREE.MeshStandardMaterial({ color: 0x3d6a2a, roughness: 0.85 })
@@ -2485,7 +2564,7 @@ function buildGenericCountryDecor(room) {
     leaf.scale.set(1.2, 0.5, 1.2);
     leaf.position.set(
       -halfW + 0.55 + (Math.random() - 0.5) * 0.2,
-      0.3 + i * 0.1, zEnd - 0.9 + (Math.random() - 0.5) * 0.2
+      0.3 + i * 0.1, zEnd - 4.5 + (Math.random() - 0.5) * 0.2
     );
     scene.add(leaf);
   }
@@ -2887,17 +2966,132 @@ function buildFoyer(room) {
   // Seeded by date so every day shows a different photo, but the same photo
   // twice on the same day. Alena notices different things on different days.
   buildPhotoOfTheDay(room);
-  buildUs(room);  // the two figures, holding hands, waiting to walk it with her
+  // NPC figures intentionally removed — the foyer is now the photo-of-today
+  // plinth + a hero peach. Less crowded, more iconic.
+  buildHeroPeach(room);
+}
+
+// ── Hero peach — a giant 🍑 sculpture, intentionally butt-shaped ───────
+// Two scaled spheres pressed together to form the cleft, a dimple in the
+// middle, a fuzzy gradient skin, a tiny stem and one leaf on top.
+// Sits on a brass plinth on the right side of the foyer at her eye-level,
+// with a soft warm spot light so it glows. Not subtle. That's the point.
+function buildHeroPeach(room) {
+  const { zCenter, zStart } = room;
+  // Position: right side of the foyer, tucked between the entrance pedestals
+  // and the photo-of-the-day plinth, far enough from the spawn that she
+  // walks toward it.
+  const px = 2.0, pz = zCenter + 0.6;
+
+  // Plinth (matches the entrance pedestals' visual language)
+  const plinthMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.5 });
+  const brassMat  = new THREE.MeshStandardMaterial({ color: 0xc4a05a, roughness: 0.28, metalness: 0.85 });
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), plinthMat);
+  plinth.position.set(px, 0.45, pz);
+  plinth.castShadow = true; plinth.receiveShadow = true;
+  scene.add(plinth);
+  addCollision(px, pz, 1.0, 1.0);
+  const cap  = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.0), brassMat);
+  cap.position.set(px, 0.93, pz);  scene.add(cap);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.0), brassMat);
+  base.position.set(px, 0.03, pz); scene.add(base);
+
+  // The peach itself — TWO spheres pushed together to form a cleft.
+  // Each lobe ~0.5m radius; the seam down the middle is the cleft.
+  const peach = new THREE.Group();
+  const peachMat = new THREE.MeshStandardMaterial({
+    color: 0xf4a896,                 // peachy pink
+    roughness: 0.85, metalness: 0.0,
+    emissive: 0xf4a896, emissiveIntensity: 0.18,
+  });
+  const blushMat = new THREE.MeshStandardMaterial({
+    color: 0xe27a72, roughness: 0.85,
+    emissive: 0xc05858, emissiveIntensity: 0.22,
+  });
+  // Two squashed spheres side-by-side along x — that gives the recognisable
+  // peach/butt cleft. Each lobe is slightly tilted forward so the cleft
+  // visibly recedes when you look at it head-on.
+  for (const sx of [-0.18, 0.18]) {
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(0.5, 36, 28), peachMat);
+    lobe.position.set(sx, 0, 0);
+    lobe.scale.set(1.0, 1.05, 1.0);   // slight vertical squash
+    lobe.castShadow = true; lobe.receiveShadow = true;
+    peach.add(lobe);
+  }
+  // Blush patch on the front-facing side (looks toward -Z, where the camera
+  // approaches from). Big-ish so it reads from the entrance.
+  const blush = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 18), blushMat);
+  blush.scale.set(1.0, 1.0, 0.18);
+  blush.position.set(0, 0.05, -0.42);
+  peach.add(blush);
+  // A tiny dimple at the cleft top to sell the silhouette.
+  const dimple = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0xb46a5a, roughness: 0.95 }));
+  dimple.position.set(0, 0.42, 0);
+  peach.add(dimple);
+  // Stem
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.16, 10),
+    new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.9 }));
+  stem.position.set(0, 0.62, 0); stem.rotation.z = -0.12;
+  peach.add(stem);
+  // Leaf
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10),
+    new THREE.MeshStandardMaterial({
+      color: 0x3d8a3a, roughness: 0.7,
+      emissive: 0x3d8a3a, emissiveIntensity: 0.15,
+    }));
+  leaf.scale.set(1.4, 0.4, 0.7);
+  leaf.position.set(0.10, 0.66, 0.04);
+  leaf.rotation.set(-0.2, 0, 0.5);
+  peach.add(leaf);
+
+  // Place the peach on top of the plinth, big enough to dominate.
+  peach.position.set(px, 0.96 + 0.5, pz);
+  scene.add(peach);
+
+  // Warm overhead glow so it's the brightest object in the foyer.
+  const peachLight = new THREE.PointLight(0xffd0b0, 1.4, 6, 0.8);
+  peachLight.position.set(px, 2.4, pz);
+  scene.add(peachLight);
+
+  // Engraved brass plate on the front of the plinth, signed.
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.18),
+    new THREE.MeshStandardMaterial({
+      color: 0xc4a05a, roughness: 0.28, metalness: 0.9,
+      emissive: 0xc4a05a, emissiveIntensity: 0.35,
+    }));
+  plate.position.set(px, 0.45, pz - 0.46);
+  plate.rotation.y = Math.PI;
+  scene.add(plate);
+  // Plate text — canvas overlay for the lettering.
+  const pc = document.createElement('canvas'); pc.width = 700; pc.height = 180;
+  const px2 = pc.getContext('2d');
+  px2.fillStyle = 'rgba(0,0,0,0)'; px2.fillRect(0, 0, 700, 180);
+  px2.fillStyle = '#2a1f10';
+  px2.font = 'italic 500 78px "Cormorant Garamond", serif';
+  px2.textAlign = 'center'; px2.textBaseline = 'middle';
+  px2.fillText('🍑 ✦ for Alena ✦ 🍑', 350, 90);
+  const ptex = new THREE.CanvasTexture(pc);
+  ptex.colorSpace = THREE.SRGBColorSpace;
+  ptex.generateMipmaps = false;
+  ptex.minFilter = THREE.LinearFilter; ptex.magFilter = THREE.LinearFilter;
+  const overlay = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.18),
+    new THREE.MeshStandardMaterial({ map: ptex, transparent: true, roughness: 0.4 }));
+  overlay.position.set(px, 0.45, pz - 0.461);
+  overlay.rotation.y = Math.PI;
+  scene.add(overlay);
 }
 
 function buildPhotoOfTheDay(room) {
   if (!CFG.exhibits.length) return;
-  // Day-of-year hash → deterministic pick
-  const d = new Date();
-  const day = Math.floor(
-    (d - new Date(d.getFullYear(), 0, 0)) / 86400000
-  );
-  const pick = CFG.exhibits[day % CFG.exhibits.length];
+  // Pick a stable "us" portrait — config can override via featuredPhoto;
+  // otherwise we take the first exhibit (chronologically earliest), which
+  // is reliably us together at the start of every album.
+  let pick = null;
+  if (CFG.featuredPhoto) {
+    pick = CFG.exhibits.find(e => e.src === CFG.featuredPhoto || e.src.endsWith('/' + CFG.featuredPhoto));
+  }
+  if (!pick) pick = CFG.exhibits[0];
 
   // Plinth placed toward the back of the foyer so the camera spawn (at z≈2)
   // sees it at a readable distance (~2.5m) rather than filling the view.
@@ -3507,14 +3701,14 @@ function placeOnWall(list, room, side) {
   const x = side === 'left' ? -halfW + 0.15 : halfW - 0.15;
   const normal = side === 'left' ? 1 : -1;
   const rotY = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
-  // Leave margin from door openings, AND the back 2.5m for the tomb.
+  // Leave margin from door openings, AND the back 2.8m for the tomb.
   const margin = 1.5;
-  const backReserve = 2.8;   // space for the country tomb at the far end
-  const usable = room.d - margin - backReserve;
-  // MIN_SPACING = 2.1m gives comfortable elbow room between max-width (1.7m)
-  // photos. If more photos than fit, stack vertically into 2 rows so nothing
-  // overlaps and no photo needs to shrink below a readable size.
-  const MIN_SPACING = 2.1;
+  const backReserve = 2.8;
+  const usable = Math.max(0, room.d - margin - backReserve);
+  // Comfortable spacing: 2.4m centre-to-centre is wider than the maximum
+  // photo width (1.7m) plus matte (0.08m) plus frame molding (0.08m), so
+  // adjacent frames can never overlap regardless of orientation.
+  const MIN_SPACING = 2.4;
   const maxOneRow = Math.max(1, Math.floor(usable / MIN_SPACING));
   if (list.length <= maxOneRow) {
     const spacing = usable / list.length;
@@ -3524,15 +3718,22 @@ function placeOnWall(list, room, side) {
     });
     return;
   }
-  // Two rows — top row at y=2.55, bottom row at y=1.55.
+  // Two rows — top row at y=3.05 (centred at eye-level + 0.7m),
+  // bottom row at y=1.15 (centred at eye-level − 0.5m). Pass a tighter
+  // (maxW, maxH) to createExhibit so portrait photos can't bleed into
+  // the row above or below — without this, a 2m-tall portrait at y=2.55
+  // overlaps an identical one at y=1.55. 1.7m of vertical separation
+  // with maxH=1.4 leaves a clean 0.3m gap.
   const perRow = Math.ceil(list.length / 2);
   const spacing = usable / perRow;
+  const Y_TOP = 3.05, Y_BOT = 1.15;
+  const ROW_MAX_W = 1.5, ROW_MAX_H = 1.4;
   list.forEach((ex, i) => {
-    const row = i % 2;                       // alternate so neighbours look distinct
+    const row = i % 2;
     const col = Math.floor(i / 2);
     const z = room.zStart + margin + spacing * (col + 0.5);
-    const y = row === 0 ? 2.55 : 1.55;
-    createExhibit(ex, x, y, z, rotY, normal);
+    const y = row === 0 ? Y_TOP : Y_BOT;
+    createExhibit(ex, x, y, z, rotY, normal, { maxW: ROW_MAX_W, maxH: ROW_MAX_H });
   });
 }
 
@@ -3620,8 +3821,9 @@ function buildFrameMesh(innerW, innerH, opts = {}) {
   return mesh;
 }
 
-function createExhibit(ex, x, y, z, rotY, normal) {
-  const maxW = 1.7, maxH = 2.0;
+function createExhibit(ex, x, y, z, rotY, normal, opts = {}) {
+  const maxW = opts.maxW ?? 1.7;
+  const maxH = opts.maxH ?? 2.0;
   // Default aspect until loaded
   let frameW = 1.2, frameH = 1.5;
 

@@ -108,6 +108,79 @@ def _placeholder_plaque(entry: dict) -> tuple[str, str, str]:
     return title, date_display, plaque
 
 
+def _curate(manifest: list[dict], per_country_cap: int = 10, burst_seconds: int = 6) -> list[dict]:
+    """Down-select the manifest before turning it into exhibits.
+
+    Two passes:
+      1. Burst dedupe — collapse runs of photos taken within `burst_seconds`
+         into a single representative (the one with the largest filesize,
+         which usually correlates with the sharpest variant). This removes
+         the kind of multi-shot bursts a phone camera produces.
+      2. Per-country cap — keep at most `per_country_cap` photos per country,
+         spread evenly across the country's date range so the exhibits feel
+         like a sampler of the trip, not the first ten frames.
+    """
+    from collections import defaultdict
+
+    # 1. Burst dedupe (sorted by timestamp inside each country bucket)
+    by_country = defaultdict(list)
+    for m in manifest:
+        by_country[m.get("country") or "unknown"].append(m)
+    for country, items in by_country.items():
+        items.sort(key=lambda p: p.get("timestamp") or "")
+
+    deduped: list[dict] = []
+    for country, items in by_country.items():
+        last_ts = None
+        kept_in_burst: dict | None = None
+        for m in items:
+            ts = m.get("timestamp") or ""
+            close = False
+            if last_ts and ts:
+                try:
+                    from datetime import datetime
+                    dt_prev = datetime.fromisoformat(last_ts)
+                    dt_cur  = datetime.fromisoformat(ts)
+                    close = abs((dt_cur - dt_prev).total_seconds()) <= burst_seconds
+                except ValueError:
+                    close = False
+            if close and kept_in_burst is not None:
+                # Keep the larger file (more likely the better-quality variant).
+                cur_path  = ROOT / "photos" / m["filename"]
+                prev_path = ROOT / "photos" / kept_in_burst["filename"]
+                try:
+                    if cur_path.stat().st_size > prev_path.stat().st_size:
+                        # Replace previous burst-rep with this one.
+                        deduped[-1] = m
+                        kept_in_burst = m
+                except FileNotFoundError:
+                    pass
+            else:
+                deduped.append(m)
+                kept_in_burst = m
+            last_ts = ts
+
+    # 2. Per-country cap with even spread across the country's photos.
+    capped: list[dict] = []
+    by_country2 = defaultdict(list)
+    for m in deduped:
+        by_country2[m.get("country") or "unknown"].append(m)
+    for country, items in by_country2.items():
+        items.sort(key=lambda p: p.get("timestamp") or "")
+        if len(items) <= per_country_cap:
+            capped.extend(items)
+            continue
+        # Evenly spaced indices across the country's photos.
+        step = (len(items) - 1) / (per_country_cap - 1)
+        idx = sorted({round(i * step) for i in range(per_country_cap)})
+        capped.extend(items[i] for i in idx[:per_country_cap])
+
+    # Restore overall chronological order.
+    capped.sort(key=lambda p: p.get("timestamp") or "")
+    print(f"  ✓ curated {len(manifest)} → {len(deduped)} after burst-dedupe → {len(capped)} after cap (≤{per_country_cap}/country)")
+    return capped
+
+
 def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> str:
     """Replace the `exhibits: [...]` literal with one built from the manifest.
 
@@ -121,6 +194,9 @@ def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> s
 
     manifest = json.loads(manifest_path.read_text())
     plaques = json.loads(plaques_path.read_text()) if plaques_path.exists() else {}
+
+    # Curate: burst-dedupe + cap to 10 per country with even spread.
+    manifest = _curate(manifest, per_country_cap=10, burst_seconds=6)
 
     # Build an exhibits array where each entry matches the structure the
     # engine consumes: { room, src, title, date, plaque }.
@@ -150,7 +226,7 @@ def regenerate_exhibits(html: str, manifest_path: Path, plaques_path: Path) -> s
         print("  ⚠ could not find exhibits: [ ... ] block — skipping regeneration")
         return html
     html = pattern.sub(new_block, html, count=1)
-    print(f"  ✓ regenerated exhibits from {manifest_path.name} ({len(manifest)} photos)")
+    print(f"  ✓ regenerated exhibits from {manifest_path.name} ({len(manifest)} curated photos)")
     return html
 
 
