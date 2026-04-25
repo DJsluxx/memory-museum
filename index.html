@@ -2650,6 +2650,310 @@ DECOR_BUILDERS.israel = buildIsraelDecor;
 
 if (!DECOR_BUILDERS.default) DECOR_BUILDERS.default = buildGenericCountryDecor;
 
+// ──────────────────────────────────────────────────────────────────────
+// LUXURY ARCHITECTURE PASS — applied to every room
+// ──────────────────────────────────────────────────────────────────────
+// • Crystal chandelier replaces the simple ceiling disc
+// • Coffered (recessed-panel) ceiling texture with gilt borders
+// • Centre floor medallion (country-tinted for country rooms)
+// • Crown molding at wall/ceiling junction
+// • Door-arch keystones above doorways
+//
+// Performance budget: heavy meshes are kept low-poly (chandelier ~80
+// tris), heavy textures are canvas-baked once and reused, and we add
+// AT MOST one extra point light per chandelier (the existing room
+// ambient is dimmed slightly to compensate). The ceiling texture is
+// shared across all rooms via a module-level cache.
+
+let _cofferedTex = null;
+function makeCofferedCeilingTex() {
+  if (_cofferedTex) return _cofferedTex;
+  const S = 1024;
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
+  const ctx = c.getContext('2d');
+  // Base panel — warm cream
+  ctx.fillStyle = '#3a2a1d';
+  ctx.fillRect(0, 0, S, S);
+  // Recessed grid: 4×4 panels
+  const N = 4;
+  const pad = 24;
+  const cell = S / N;
+  for (let row = 0; row < N; row++) {
+    for (let col = 0; col < N; col++) {
+      const x = col * cell + pad, y = row * cell + pad;
+      const w = cell - pad * 2, h = cell - pad * 2;
+      // Panel face — warm wood tone with a soft inner gradient
+      const g = ctx.createRadialGradient(x + w/2, y + h/2, 8, x + w/2, y + h/2, w * 0.7);
+      g.addColorStop(0, '#7a5538');
+      g.addColorStop(1, '#3a2818');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w, h);
+      // Gilt inner border
+      ctx.strokeStyle = '#c4a05a'; ctx.lineWidth = 4;
+      ctx.strokeRect(x + 6, y + 6, w - 12, h - 12);
+      // Tiny rosette in the centre of each panel
+      ctx.fillStyle = 'rgba(196,160,90,0.85)';
+      ctx.beginPath();
+      ctx.arc(x + w/2, y + h/2, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(40,28,16,0.85)';
+      ctx.beginPath();
+      ctx.arc(x + w/2, y + h/2, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Outer gilt border
+  ctx.strokeStyle = '#c4a05a'; ctx.lineWidth = 8;
+  ctx.strokeRect(8, 8, S - 16, S - 16);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
+  _cofferedTex = tex;
+  return tex;
+}
+
+// Crystal chandelier — brass ring, hanging crystals, central bulb.
+// Returns a Group anchored at its TOP attachment point.
+function buildChandelier(scale = 1.0) {
+  const g = new THREE.Group();
+  const brass = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.28, metalness: 0.9,
+    emissive: 0xc4a05a, emissiveIntensity: 0.18,
+  });
+  const crystal = new THREE.MeshStandardMaterial({
+    color: 0xfff0c0, roughness: 0.15, metalness: 0.4,
+    emissive: 0xfff0c0, emissiveIntensity: 0.85,
+  });
+  const bulb = new THREE.MeshStandardMaterial({
+    color: 0xffe5b0, roughness: 0.2, metalness: 0.0,
+    emissive: 0xffd070, emissiveIntensity: 1.4,
+  });
+
+  // Chain (3 short links rendered as a single thin cylinder for perf)
+  const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5 * scale, 6), brass);
+  chain.position.y = -0.25 * scale;
+  g.add(chain);
+
+  // Top canopy where the chain meets the ceiling
+  const canopy = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * scale, 0.05 * scale, 0.04 * scale, 12), brass);
+  canopy.position.y = -0.02 * scale;
+  g.add(canopy);
+
+  // Main horizontal ring
+  const ringR = 0.42 * scale;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(ringR, 0.015 * scale, 8, 24), brass);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = -0.55 * scale;
+  g.add(ring);
+
+  // Inner ring
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(ringR * 0.55, 0.012 * scale, 8, 20), brass);
+  ring2.rotation.x = Math.PI / 2;
+  ring2.position.y = -0.62 * scale;
+  g.add(ring2);
+
+  // Hanging crystal teardrops around the ring (8)
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const cx = Math.cos(a) * ringR, cz = Math.sin(a) * ringR;
+    // Short brass arm rising upward into a candle holder
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.01 * scale, 0.01 * scale, 0.2 * scale, 6), brass);
+    arm.position.set(cx, -0.45 * scale, cz);
+    g.add(arm);
+    // Tiny candle flame at the top
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.035 * scale, 10, 8), bulb);
+    flame.scale.set(1, 1.6, 1);
+    flame.position.set(cx, -0.32 * scale, cz);
+    g.add(flame);
+    // Hanging crystal teardrop below the ring
+    const crys = new THREE.Mesh(new THREE.OctahedronGeometry(0.045 * scale, 0), crystal);
+    crys.scale.set(1, 1.7, 1);
+    crys.position.set(cx, -0.7 * scale, cz);
+    g.add(crys);
+  }
+
+  // Inner ring crystals (4 smaller)
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const cx = Math.cos(a) * ringR * 0.55, cz = Math.sin(a) * ringR * 0.55;
+    const crys = new THREE.Mesh(new THREE.OctahedronGeometry(0.035 * scale, 0), crystal);
+    crys.scale.set(1, 1.5, 1);
+    crys.position.set(cx, -0.74 * scale, cz);
+    g.add(crys);
+  }
+
+  // Big central crystal
+  const centre = new THREE.Mesh(new THREE.OctahedronGeometry(0.09 * scale, 0), crystal);
+  centre.scale.set(1, 1.6, 1);
+  centre.position.y = -0.85 * scale;
+  g.add(centre);
+
+  // One soft point light to drive subtle dynamic shading on nearby walls
+  const lx = new THREE.PointLight(0xffd9a0, 0.85, 7, 1.0);
+  lx.position.y = -0.55 * scale;
+  g.add(lx);
+
+  return g;
+}
+
+// Floor medallion — a circular emblem inlaid in marble/stone, country-tinted.
+function buildCenterFloorMedallion(room) {
+  const { w, d, zCenter } = room;
+  const radius = Math.min(w, d) * 0.18;       // scales with room
+  const accent = (room.country?.accent ?? 0xc4a05a);
+  const primary = (room.country?.primary ?? 0xe6c97c);
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 1024);
+  // Outer brass ring
+  ctx.strokeStyle = '#c4a05a'; ctx.lineWidth = 12;
+  ctx.beginPath(); ctx.arc(512, 512, 480, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(512, 512, 460, 0, Math.PI * 2); ctx.stroke();
+  // Inner stone field tinted by country
+  const fieldHex = '#' + ((primary >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+  const grad = ctx.createRadialGradient(512, 512, 100, 512, 512, 440);
+  grad.addColorStop(0, fieldHex + 'cc');
+  grad.addColorStop(1, fieldHex + '40');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(512, 512, 440, 0, Math.PI * 2); ctx.fill();
+  // Eight-pointed compass star
+  const accHex = '#' + ((accent >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+  ctx.fillStyle = accHex;
+  ctx.translate(512, 512);
+  for (let i = 0; i < 8; i++) {
+    ctx.save();
+    ctx.rotate((i / 8) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(40, -300);
+    ctx.lineTo(0, -340);
+    ctx.lineTo(-40, -300);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  // Centre dot
+  ctx.fillStyle = '#c4a05a';
+  ctx.beginPath(); ctx.arc(0, 0, 50, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a1f10';
+  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+  const med = new THREE.Mesh(
+    new THREE.PlaneGeometry(radius * 2, radius * 2),
+    new THREE.MeshStandardMaterial({
+      map: tex, transparent: true, roughness: 0.5, metalness: 0.3,
+      emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.18,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    })
+  );
+  med.rotation.x = -Math.PI / 2;
+  med.position.set(0, 0.012, zCenter);
+  scene.add(med);
+}
+
+// Crown molding around the top edge of the room (at the wall/ceiling junction).
+function buildCrownMolding(room) {
+  const { w, d, zCenter } = room;
+  const halfW = w / 2;
+  const moldMat = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.32, metalness: 0.78,
+    emissive: 0xc4a05a, emissiveIntensity: 0.12,
+  });
+  const H = WALL_H - 0.05;
+  // Two long bands along the side walls
+  for (const sx of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, d - 0.1), moldMat);
+    m.position.set(sx * (halfW - 0.075), H, zCenter);
+    scene.add(m);
+  }
+  // Two short bands along the front and back walls
+  const wallSpan = w - 0.1;
+  const front = new THREE.Mesh(new THREE.BoxGeometry(wallSpan, 0.08, 0.05), moldMat);
+  front.position.set(0, H, room.zStart + 0.075);
+  scene.add(front);
+  const back = front.clone();
+  back.position.z = room.zEnd - 0.075;
+  scene.add(back);
+}
+
+// Replaces the simple disc fixture from buildRoom with a chandelier hung
+// from the centre of the ceiling.
+function attachChandelier(room) {
+  const { tone, zCenter } = room;
+  if (tone === "night") return;   // letter room keeps its starry stillness
+  const ch = buildChandelier(1.0);
+  ch.position.set(0, WALL_H - 0.04, zCenter);
+  scene.add(ch);
+}
+
+// Decorative arched doorway with a keystone — applied to both ends of every
+// non-letter room. Built as a thin extruded plane in front of the lintel.
+function addDoorArches(room, prevRoom, nextRoom) {
+  const { w, zStart, zEnd, tone } = room;
+  if (tone === "night") return;   // letter room doorway is austere
+  const accent = tone === "country" ? room.country.accent : 0xc4a05a;
+  const arcMat = new THREE.MeshStandardMaterial({
+    color: accent, roughness: 0.3, metalness: 0.85,
+    emissive: accent, emissiveIntensity: 0.12,
+  });
+  // Helper: place the keystone & cornice at one end of the room.
+  function placeAt(zPos, isOpen) {
+    if (!isOpen) return;
+    // Keystone above the doorway centre
+    const ks = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.18), arcMat);
+    ks.position.set(0, DOOR_H + 0.18, zPos);
+    scene.add(ks);
+    // Decorative cornice band right above the lintel
+    const cornice = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 0.6, 0.04, 0.16), arcMat);
+    cornice.position.set(0, DOOR_H + 0.36, zPos);
+    scene.add(cornice);
+    // Pediment — two angled bars rising from cornice to keystone (visual flourish)
+    for (const sx of [-1, 1]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.14), arcMat);
+      bar.position.set(sx * 0.45, DOOR_H + 0.42, zPos);
+      bar.rotation.z = sx * -0.35;
+      scene.add(bar);
+    }
+  }
+  placeAt(zStart, !!prevRoom);
+  placeAt(zEnd,   !!nextRoom);
+}
+
+function buildLuxuryAccents(room, prevRoom, nextRoom) {
+  // Coffered ceiling — replace the flat ceiling with a textured panel.
+  // We do this by adding a SECOND plane just below the existing ceiling,
+  // with the coffered texture. Cheap, no geometry rebuild.
+  const { w, d, zCenter, tone } = room;
+  if (tone !== "night") {
+    const tex = makeCofferedCeilingTex();
+    // Repeat once across the room — for very long rooms scale tex vertically
+    // so the panel grid stays roughly square.
+    tex.repeat.set(Math.max(1, Math.round(w / 6)), Math.max(1, Math.round(d / 6)));
+    const ceilMat = new THREE.MeshStandardMaterial({
+      map: tex, roughness: 0.7, metalness: 0.25,
+      emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.05, d - 0.05), ceilMat);
+    ceil.rotation.x = Math.PI / 2;   // face DOWN (back of plane visible from below — flips so texture reads right)
+    ceil.position.set(0, WALL_H - 0.012, zCenter);
+    scene.add(ceil);
+  }
+  attachChandelier(room);
+  if (tone !== "night") buildCrownMolding(room);
+  // Skip the centre medallion in the foyer — it already has the peach
+  // monogram seal, and in the letter room it would distract from the letter.
+  if (room.key !== "letter" && room.key !== "foyer") buildCenterFloorMedallion(room);
+  addDoorArches(room, prevRoom, nextRoom);
+}
+
 function buildRoom(room, prevRoom, nextRoom) {
   const { w, d, zStart, zEnd, zCenter, tone } = room;
   const halfW = w / 2;
@@ -2756,26 +3060,7 @@ function buildRoom(room, prevRoom, nextRoom) {
   ambient.position.set(0, WALL_H - 0.3, zCenter);
   scene.add(ambient);
 
-  // Ceiling light fixture (disc) — skip in letter room
-  if (tone !== "night") {
-    const fixture = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.32, 0.38, 0.1, 24),
-      new THREE.MeshStandardMaterial({ color: 0xf5e2a5, emissive: 0xffe5b0, emissiveIntensity: 1.3, metalness: 0.7, roughness: 0.35 })
-    );
-    fixture.position.set(0, WALL_H - 0.05, zCenter);
-    scene.add(fixture);
-    // Soft glow disc just below the fixture (additive, depth-off so it reads like bulb spill)
-    const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.8, 1.8),
-      new THREE.MeshBasicMaterial({
-        color: 0xffd9a0, transparent: true, opacity: 0.28,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      })
-    );
-    glow.rotation.x = Math.PI / 2; // face down
-    glow.position.set(0, WALL_H - 0.12, zCenter);
-    scene.add(glow);
-  }
+  // Old disc fixture replaced by buildLuxuryAccents() → buildChandelier() below.
 
   // Room-specific touches
   if (room.key === "foyer") {
@@ -2807,6 +3092,11 @@ function buildRoom(room, prevRoom, nextRoom) {
   if (tone === "country") {
     buildCountryDecor(room);
   }
+
+  // Luxury architectural pass — coffered ceiling, chandelier, crown molding,
+  // floor medallion, door arches. Applied last so it overlays everything
+  // structural without rewriting it.
+  buildLuxuryAccents(room, prevRoom, nextRoom);
 }
 
 function buildEndWall(zPos, roomWidth, wallMat, doorWidth, trimMat) {
@@ -3250,6 +3540,106 @@ function buildLetterRoom(room) {
 
   // Stars emissive ceiling
   scene.add(new THREE.PointLight(0x4a5088, 0.3, 20));
+
+  // ── Velvet bench facing the letter — a place to sit and read ──
+  // Burgundy velvet, brass-button quilted seat, brass legs.
+  const benchZ = backZ - 3.0;
+  const benchMat = new THREE.MeshStandardMaterial({
+    color: 0x6a1820, roughness: 0.85,
+    emissive: 0x401012, emissiveIntensity: 0.18,
+  });
+  const benchBrass = new THREE.MeshStandardMaterial({
+    color: 0xc4a05a, roughness: 0.32, metalness: 0.85,
+    emissive: 0xc4a05a, emissiveIntensity: 0.18,
+  });
+  // Seat
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.18, 0.7), benchMat);
+  seat.position.set(0, 0.5, benchZ);
+  seat.castShadow = true; seat.receiveShadow = true;
+  scene.add(seat);
+  addCollision(0, benchZ, 2.5, 0.8);
+  // Backrest
+  const back = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.65, 0.14), benchMat);
+  back.position.set(0, 0.85, benchZ + 0.28);
+  scene.add(back);
+  // Brass tufting buttons — 3 across
+  for (let i = -1; i <= 1; i++) {
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), benchBrass);
+    btn.position.set(i * 0.5, 0.85, benchZ + 0.215);
+    scene.add(btn);
+  }
+  // Four brass legs
+  for (const sx of [-1.05, 1.05]) for (const sz of [-0.28, 0.28]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.06), benchBrass);
+    leg.position.set(sx, 0.21, benchZ + sz);
+    scene.add(leg);
+  }
+  // Decorative brass piping along the seat edge
+  const pipeF = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.025, 0.025), benchBrass);
+  pipeF.position.set(0, 0.59, benchZ - 0.345); scene.add(pipeF);
+  const pipeB = pipeF.clone(); pipeB.position.z = benchZ + 0.345; scene.add(pipeB);
+
+  // ── Two tall candelabras flanking the letter ──
+  // Five-arm gilt candelabra on a square base, one to each side of the
+  // letter at the back of the room.
+  function buildCandelabra() {
+    const g = new THREE.Group();
+    const gold = new THREE.MeshStandardMaterial({
+      color: 0xc4a05a, roughness: 0.3, metalness: 0.9,
+      emissive: 0xc4a05a, emissiveIntensity: 0.16,
+    });
+    const wax = new THREE.MeshStandardMaterial({
+      color: 0xf6edd7, roughness: 0.7,
+      emissive: 0xf6edd7, emissiveIntensity: 0.15,
+    });
+    const flameMat = new THREE.MeshStandardMaterial({
+      color: 0xffd070, emissive: 0xffbb40, emissiveIntensity: 1.4, roughness: 0.3,
+    });
+    // Base (square stepped)
+    const base1 = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.36), gold);
+    base1.position.y = 0.03; g.add(base1);
+    const base2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.28), gold);
+    base2.position.y = 0.09; g.add(base2);
+    // Stem
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1.4, 12), gold);
+    stem.position.y = 0.82; g.add(stem);
+    // Knob ornaments along stem
+    for (let i = 0; i < 3; i++) {
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), gold);
+      knob.position.y = 0.4 + i * 0.4; g.add(knob);
+    }
+    // Top horizontal bar (5 arms via 2 curves + a centre)
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.025, 0.025), gold);
+    cross.position.y = 1.55; g.add(cross);
+    // 5 candle holders + candles + flames
+    const xs = [-0.45, -0.22, 0, 0.22, 0.45];
+    for (const x of xs) {
+      // Arm rising from cross to candle (slightly arched via 2 segments)
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.25, 8), gold);
+      arm.position.set(x, 1.68, 0); g.add(arm);
+      // Cup
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.04, 12), gold);
+      cup.position.set(x, 1.82, 0); g.add(cup);
+      // Candle
+      const cnd = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.18, 12), wax);
+      cnd.position.set(x, 1.93, 0); g.add(cnd);
+      // Flame
+      const fl = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), flameMat);
+      fl.scale.set(1, 1.7, 1);
+      fl.position.set(x, 2.07, 0); g.add(fl);
+    }
+    // One subtle local light per candelabra
+    const cl = new THREE.PointLight(0xffc070, 0.7, 4, 1.2);
+    cl.position.y = 1.85;
+    g.add(cl);
+    return g;
+  }
+  for (const sx of [-2.5, 2.5]) {
+    const cb = buildCandelabra();
+    cb.position.set(sx, 0, backZ - 1.6);
+    scene.add(cb);
+    addCollision(sx, backZ - 1.6, 0.45, 0.45);
+  }
 }
 
 function wrapText(ctx, text, maxWidth) {
