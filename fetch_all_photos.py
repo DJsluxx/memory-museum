@@ -228,11 +228,26 @@ async def run(album_url: str, out: Path, concurrency: int, max_minutes: int, siz
         await page.goto(album_url, wait_until="domcontentloaded", timeout=45_000)
 
         # Catch the "this album is private" case early.
+        # NOTE: a generic "sign in" string match was too aggressive — Google
+        # Photos shows a "Sign in" button in the top-right of every public
+        # album page, so that alone meant nothing. Only the specific error
+        # phrases below mean the share is actually inaccessible.
         body_text = (await page.locator("body").inner_text())[:1500].lower()
-        if any(m in body_text for m in ("sign in", "album isn't available", "no longer shared")):
+        private_markers = (
+            "album isn't available",
+            "album is no longer shared",
+            "this album is no longer shared",
+            "no longer shared",
+            "request access",
+            "you don't have permission",
+            "you need permission",
+            "page not found",
+        )
+        if any(m in body_text for m in private_markers):
             stamp = time.strftime("%Y%m%d-%H%M%S")
             await page.screenshot(path=f"fetch-debug-{stamp}.png", full_page=True)
             log("✗ album appears private or unavailable — share link must be public")
+            log(f"   page text snippet: {body_text[:200]}")
             await browser.close()
             return 2
 

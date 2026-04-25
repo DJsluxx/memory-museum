@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>A Museum of Us</title>
+<title>The Museum of Alena and Daniel 🍑</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
@@ -623,10 +623,10 @@
 <body>
 
 <div id="loading">
-  <div class="mono">A Museum of Us</div>
+  <div class="mono">The Museum of Alena and Daniel 🍑</div>
   <div class="sub">Preparing the gallery</div>
   <div class="cartouche">
-    <div class="cartouche-names">Daniel · Alena</div>
+    <div class="cartouche-names">Alena · Daniel  🍑</div>
     <div class="cartouche-frame"><div class="cartouche-fill" id="load-fill"></div></div>
     <div class="cartouche-count" id="load-count">0%</div>
   </div>
@@ -779,13 +779,15 @@ window.MUSEUM_CONFIG = {
   visitorName: "Alena",
   dedication: "For my love",
   signature: "— Daniel",
-  letter: `If you've made it this far, you've walked through rooms I built for you. Each picture hung on the wall like something rare — because to me, that's what each one is.
+  letter: `You walked through every room. You saw us standing in the foyer, holding hands, waiting for you. Now you're at the end — and the end is the part I care about most.
 
-I used to think museums were for things already finished. Maybe they're really places where a feeling is given permission to stay still long enough to be seen properly.
+What's next isn't a country. It's a kitchen. It's a couch that's ours, not borrowed. It's the same coffee machine every morning instead of a different hotel kettle every week. It's the boring magic of opening the same door at night and finding you on the other side of it.
 
-This one isn't finished. The last wall is blank on purpose. Everything we haven't done yet goes there.
+There are still rooms missing from this museum. The Israel room with the balcony and the lemon tree. The first apartment we pick together where neither of us knows where the cutlery goes for a month. The trip we haven't booked yet — somewhere with a beach you'll like and food I'll over-order. Three more rooms, ten more rooms, however many we're given. The walls are already there. We just haven't taken the photos yet.
 
-I love you.`,
+I love you. I love your laugh, your stubbornness, your texts at 3am, your hands. I love your A$$ 🍑 — that one needs to be on the record. I love that you read this far and didn't skip to the end. I love that home is a person, and the person is you.
+
+See you in the next room.`,
   // Optional: URL to an MP3 for ambient music (royalty-free piano works beautifully)
   // Leave null for silence.
   musicUrl: null,
@@ -2810,7 +2812,7 @@ function buildFoyer(room) {
   fmx.fillStyle = 'rgba(196,160,90,0.65)';
   fmx.font = '500 44px "Cormorant Garamond", serif';
   fmx.textAlign = 'center'; fmx.textBaseline = 'middle';
-  const textTop = '·  A  MUSEUM  OF  US  ·';
+  const textTop = '·  ALENA  &  DANIEL  ·';
   const chars = textTop.split('');
   const radius = 340;
   const totalAngle = Math.PI * 0.95;
@@ -2835,11 +2837,16 @@ function buildFoyer(room) {
     fmx.restore();
   });
   fmx.restore();
-  // Center monogram "M"
-  fmx.fillStyle = 'rgba(196,160,90,0.75)';
-  fmx.font = 'italic 500 220px "Cormorant Garamond", serif';
+  // Center: a peach 🍑 above an ampersand-style monogram. Both render
+  // through the system emoji font on phones; if a desktop browser falls
+  // back to a generic "🍑" glyph it still reads as a peach.
+  fmx.fillStyle = 'rgba(196,160,90,0.85)';
+  fmx.font = '500 200px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif';
   fmx.textAlign = 'center'; fmx.textBaseline = 'middle';
-  fmx.fillText('M', 512, 512);
+  fmx.fillText('🍑', 512, 470);
+  fmx.fillStyle = 'rgba(196,160,90,0.75)';
+  fmx.font = 'italic 500 110px "Cormorant Garamond", serif';
+  fmx.fillText('A & D', 512, 620);
   const foyerMedTex = new THREE.CanvasTexture(fmc);
   foyerMedTex.colorSpace = THREE.SRGBColorSpace;
   const foyerMedMat = new THREE.MeshStandardMaterial({
@@ -2968,9 +2975,10 @@ function buildPhotoOfTheDay(room) {
 }
 
 function buildLetterRoom(room) {
-  // Large framed letter on back wall
+  // Large framed letter on back wall — taller now that the closing letter
+  // talks about future trips, future homes and yes, a peach.
   const backZ = room.zEnd - 0.15;
-  const letterW = 4, letterH = 2.8;
+  const letterW = 4, letterH = 3.6;
   // Frame
   const fw = 0.15;
   const frameGeom = new THREE.BoxGeometry(letterW + fw*2, letterH + fw*2, 0.08);
@@ -2980,29 +2988,30 @@ function buildLetterRoom(room) {
   // Parchment canvas with letter text.
   // Pre-mirror the canvas: combined with the plane rendered on BackSide,
   // the net result reads left-to-right for a viewer in front of the wall.
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 720;
+  const C_W = 1024, C_H = 1024;
+  const c = document.createElement('canvas'); c.width = C_W; c.height = C_H;
   const ctx = c.getContext('2d');
-  ctx.translate(1024, 0);
+  ctx.translate(C_W, 0);
   ctx.scale(-1, 1);
-  const grad = ctx.createLinearGradient(0, 0, 0, 720);
+  const grad = ctx.createLinearGradient(0, 0, 0, C_H);
   grad.addColorStop(0, '#f8f0da'); grad.addColorStop(1, '#e8d9b3');
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 720);
-  for (let i = 0; i < 80; i++) {
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, C_W, C_H);
+  for (let i = 0; i < 100; i++) {
     ctx.fillStyle = `rgba(120,90,50,${Math.random() * 0.08})`;
     ctx.beginPath();
-    ctx.arc(Math.random() * 1024, Math.random() * 720, Math.random() * 3, 0, Math.PI * 2);
+    ctx.arc(Math.random() * C_W, Math.random() * C_H, Math.random() * 3, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.fillStyle = '#2a2016';
-  ctx.font = 'italic 300 56px "Cormorant Garamond", serif';
-  ctx.fillText(`My ${CFG.visitorName},`, 70, 110);
-  ctx.font = '300 28px "Fraunces", serif';
+  ctx.font = 'italic 300 50px "Cormorant Garamond", serif';
+  ctx.fillText(`My ${CFG.visitorName},`, 70, 100);
+  ctx.font = '300 24px "Fraunces", serif';
   const lines = wrapText(ctx, CFG.letter, 880);
-  let y = 180;
-  lines.forEach(line => { ctx.fillText(line, 70, y); y += 44; });
-  ctx.font = 'italic 300 36px "Cormorant Garamond", serif';
+  let y = 160;
+  lines.forEach(line => { ctx.fillText(line, 70, y); y += 36; });
+  ctx.font = 'italic 300 32px "Cormorant Garamond", serif';
   ctx.textAlign = 'right';
-  ctx.fillText(CFG.signature, 950, y + 50);
+  ctx.fillText(CFG.signature, 950, Math.min(y + 48, C_H - 40));
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -3258,7 +3267,7 @@ function buildTombSignTexture(title, subtitle, story, accentHex) {
   ctx.fillStyle = '#3a2818';
   ctx.font = 'italic 400 22px "Cormorant Garamond", serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('✦ Daniel · Alena ✦', W / 2, H - 40);
+  ctx.fillText('✦  Alena · Daniel  🍑  ✦', W / 2, H - 40);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.generateMipmaps = false;
