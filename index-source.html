@@ -4063,12 +4063,16 @@ function buildPhotoOfTheDay(room) {
     color: 0xc9b896, roughness: 0.9,
     emissive: 0xffffff, emissiveIntensity: 0.45,
   });
+  // Z-order (camera is at smaller z, plinth faces -Z): photo must be CLOSER
+  // to the camera (smaller z) than the matte, otherwise the opaque matte
+  // occludes the photo and the panel reads as a blank cream rectangle.
+  // Mirrors createExhibit's local-space layout (matte 0.055, photo 0.062).
   const matte = new THREE.Mesh(new THREE.PlaneGeometry(panelW + 0.1, panelH + 0.1), matteMat);
   matte.position.set(px, 1.65, pz - 0.055);
   matte.rotation.y = Math.PI;
   scene.add(matte);
   const panel = new THREE.Mesh(new THREE.PlaneGeometry(panelW, panelH), photoMat);
-  panel.position.set(px, 1.65, pz - 0.05);
+  panel.position.set(px, 1.65, pz - 0.062);
   panel.rotation.y = Math.PI;
   scene.add(panel);
 
@@ -5964,7 +5968,7 @@ function animate() {
   direction.z = Number(move.forward) - Number(move.backward);
   direction.x = Number(move.right) - Number(move.left);
   direction.normalize();
-  const speed = 28;
+  const speed = 42;
   if (move.forward || move.backward) velocity.z -= direction.z * speed * dt;
   if (move.left || move.right) velocity.x -= direction.x * speed * dt;
   if (isTouch && (joyVX || joyVY)) {
