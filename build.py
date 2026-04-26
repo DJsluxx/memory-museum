@@ -340,6 +340,31 @@ def embed_photos(html: str) -> str:
     return html
 
 
+def embed_audio(html: str) -> str:
+    """Inline assets/*.mp3 references as base64 data URIs.
+
+    The MP3 lives behind a quoted path like "assets/where-sunlight-settles.mp3"
+    in MUSEUM_CONFIG.musicUrl; we just substitute the data URI in place. Keeps
+    the single-HTML-file constraint intact (no separate asset fetch at runtime).
+    """
+    refs = sorted(set(re.findall(r'assets/[\w\-]+\.mp3', html)))
+    if not refs:
+        return html
+    total = 0
+    for ref in refs:
+        fpath = ROOT / ref
+        if not fpath.exists():
+            print(f"  ⚠ {ref} not found — leaving reference unembedded")
+            continue
+        data = fpath.read_bytes()
+        b64 = base64.b64encode(data).decode("ascii")
+        uri = f"data:audio/mpeg;base64,{b64}"
+        html = html.replace(f'"{ref}"', f'"{uri}"')
+        total += len(uri)
+    print(f"  ✓ embedded {len(refs)} audio file(s)  ({total / (1024*1024):.1f} MB base64)")
+    return html
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", default="index-source.html", type=Path)
@@ -359,6 +384,7 @@ def main() -> None:
     if not args.no_manifest:
         html = regenerate_exhibits(html, args.manifest, args.plaques)
     html = inject_importmap(html)
+    html = embed_audio(html)
     html = embed_photos(html)
 
     args.output.write_text(html)

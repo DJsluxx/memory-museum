@@ -788,9 +788,10 @@ There are still rooms missing from this museum. The Israel room with the balcony
 I love you. I love your laugh, your stubbornness, your texts at 3am, your hands. I love your A$$ 🍑 — that one needs to be on the record. I love that you read this far and didn't skip to the end. I love that home is a person, and the person is you.
 
 See you in the next room.`,
-  // Optional: URL to an MP3 for ambient music (royalty-free piano works beautifully)
-  // Leave null for silence.
-  musicUrl: null,
+  // Optional: URL to an MP3 for ambient music. When set, AudioManager plays
+  // this loop instead of the procedural per-country patches. build.py inlines
+  // the file as a base64 data URI so file:// still works offline.
+  musicUrl: "assets/where-sunlight-settles.mp3",
 
   // The photo to show on the foyer "today" plinth. Path is relative to the
   // HTML; build.py will embed it as a base64 data URI even if it's not in
@@ -5742,6 +5743,48 @@ const AudioManager = (() => {
   let currentRoom = null;
   let enabled = localStorage.getItem("mm.music") !== "0";
 
+  // ---------- Track-based path (when CFG.musicUrl is set) ----------
+  // A single ambient loop replaces the procedural per-country patches. The
+  // procedural code below stays as a fallback for musicUrl=null. Letter room
+  // still fades to silence — decision #13 (silence has weight there).
+  const trackUrl = CFG.musicUrl || null;
+  let trackEl = null;       // HTMLAudioElement
+  let trackFade = null;     // active rAF fade id
+  const TRACK_VOL = 0.45;   // target volume in non-letter rooms
+
+  function fadeTrack(toVol, ms) {
+    if (!trackEl) return;
+    if (trackFade) cancelAnimationFrame(trackFade);
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) ms = Math.min(ms, 200);
+    const fromVol = trackEl.volume;
+    const startT = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - startT) / ms);
+      trackEl.volume = fromVol + (toVol - fromVol) * t;
+      if (t < 1) trackFade = requestAnimationFrame(step);
+      else {
+        trackFade = null;
+        if (toVol === 0) trackEl.pause();
+      }
+    };
+    if (toVol > 0 && trackEl.paused) {
+      // Autoplay may reject — if it does we just stay silent until next gesture.
+      const p = trackEl.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+    trackFade = requestAnimationFrame(step);
+  }
+
+  function ensureTrackEl() {
+    if (trackEl || !trackUrl) return trackEl;
+    trackEl = new Audio(trackUrl);
+    trackEl.loop = true;
+    trackEl.preload = "auto";
+    trackEl.volume = 0;
+    return trackEl;
+  }
+
   function ensureCtx() {
     if (ctx) return ctx;
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -5908,11 +5951,25 @@ const AudioManager = (() => {
   function start(initialKey) {
     if (started) return;
     started = true;
+    if (trackUrl) {
+      ensureTrackEl();
+      currentRoom = initialKey;
+      if (enabled && initialKey !== "letter") fadeTrack(TRACK_VOL, 1500);
+      return;
+    }
     ensureCtx();
     crossfade(initialKey);
   }
 
   function enter(key) {
+    if (trackUrl) {
+      if (!started && enabled) { start(key); return; }
+      currentRoom = key;
+      if (!enabled) return;
+      // Letter room is silent on purpose (decision #13).
+      fadeTrack(key === "letter" ? 0 : TRACK_VOL, 2000);
+      return;
+    }
     if (!started && enabled) start(key);
     else crossfade(key);
   }
@@ -5920,6 +5977,16 @@ const AudioManager = (() => {
   function toggle() {
     enabled = !enabled;
     localStorage.setItem("mm.music", enabled ? "1" : "0");
+    if (trackUrl) {
+      if (!trackEl && enabled) ensureTrackEl();
+      if (enabled) {
+        const target = (currentRoom === "letter") ? 0 : TRACK_VOL;
+        fadeTrack(target, 800);
+      } else {
+        fadeTrack(0, 600);
+      }
+      return enabled;
+    }
     if (ctx) {
       if (enabled) {
         const k = currentRoom || "foyer";
@@ -5937,9 +6004,14 @@ const AudioManager = (() => {
   }
 
   function pause() {
+    if (trackEl && !trackEl.paused) trackEl.pause();
     if (ctx && ctx.state === "running") ctx.suspend();
   }
   function resume() {
+    if (trackEl && enabled && currentRoom !== "letter" && trackEl.paused) {
+      const p = trackEl.play();
+      if (p && p.catch) p.catch(() => {});
+    }
     if (ctx && ctx.state === "suspended") ctx.resume();
   }
 
