@@ -1329,7 +1329,7 @@ const COUNTRY_THEMES = {
   vietnam:       { name: "Vietnam",        native: "Việt Nam",   english: "VIETNAM",        primary: 0xDA251D, secondary: 0xFFFF00, accent: 0xFFFF00, flagFn: "vietnam",   floor: "teak" },
   "hong-kong":   { name: "Hong Kong",      native: "香港",       english: "HONG KONG",      primary: 0xDE2408, secondary: 0xFFFFFF, accent: 0xFFFFFF, flagFn: "banner",    floor: "lacquer" },
   israel:        { name: "Israel",         native: "ישראל",      english: "ISRAEL",         primary: 0x0038B8, secondary: 0xFFFFFF, accent: 0x0038B8, flagFn: "israel",    floor: "jerusalem" },
-  uae:           { name: "UAE",            native: "الإمارات",   english: "UAE",            primary: 0x00732F, secondary: 0xFFFFFF, accent: 0xFF0000, flagFn: "banner",    floor: "sand" },
+  uae:           { name: "UAE",            native: "الإمارات",   english: "UAE",            primary: 0x00732F, secondary: 0xFFFFFF, accent: 0xCE1126, flagFn: "uae",       floor: "sand" },
   cambodia:      { name: "Cambodia",       native: "កម្ពុជា",     english: "CAMBODIA",       primary: 0x032EA1, secondary: 0xE00025, accent: 0xE00025, flagFn: "banner",    floor: "terracotta" },
   laos:          { name: "Laos",           native: "ລາວ",        english: "LAOS",           primary: 0xCE1126, secondary: 0x002868, accent: 0xFFFFFF, flagFn: "banner",    floor: "teak" },
   malaysia:      { name: "Malaysia",       native: "Malaysia",   english: "MALAYSIA",       primary: 0xCC0001, secondary: 0xFFCC00, accent: 0x010066, flagFn: "banner",    floor: "teak" },
@@ -1645,6 +1645,20 @@ function drawIsraelFlag() {
   return c;
 }
 
+// ---- UAE: vertical red hoist (1/4) + green/white/black horizontal bands (3/4). ----
+function drawUaeFlag() {
+  const c = document.createElement('canvas'); c.width = 900; c.height = 600;
+  const ctx = c.getContext('2d');
+  // Hoist stripe (left 1/4) — red
+  ctx.fillStyle = '#ce1126'; ctx.fillRect(0, 0, 225, 600);
+  // Three horizontal bands across the right 3/4 — green / white / black, each 200px tall
+  ctx.fillStyle = '#00732f'; ctx.fillRect(225,   0, 675, 200); // green (top)
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(225, 200, 675, 200); // white (middle)
+  ctx.fillStyle = '#000000'; ctx.fillRect(225, 400, 675, 200); // black (bottom)
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 898, 598);
+  return c;
+}
+
 // ---- Germany: black/red/gold horizontal tricolour. ----
 function drawGermanyFlag() {
   const c = document.createElement('canvas'); c.width = 900; c.height = 600;
@@ -1823,6 +1837,7 @@ function buildCountryAccents(room) {
     vietnam:   drawVietnamFlag,
     israel:    drawIsraelFlag,
     germany:   drawGermanyFlag,
+    uae:       drawUaeFlag,
   };
   const flagCanvas = flagDrawers[country.flagFn]
     ? flagDrawers[country.flagFn]()
